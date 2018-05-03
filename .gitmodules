@@ -1,32 +1,42 @@
 [submodule "src/rainmeter-plugin-sdk"]
 	path = src/rainmeter-plugin-sdk
 	url = https://github.com/rainmeter/rainmeter-plugin-sdk.git
+	ignore = untracked
 [submodule "src/tk"]
 	path = src/tk
 	url = https://github.com/tcltk/tk.git
 	branch = core-8-6-branch
+	ignore = untracked
 [submodule "src/tcl"]
 	path = src/tcl
 	url = https://github.com/tcltk/tcl.git
 	branch = core-8-6-branch
+	ignore = untracked
 [submodule "src/tcllib"]
 	path = src/tcllib
 	url = https://github.com/tcltk/tcllib.git
+	ignore = untracked
 [submodule "src/tklib"]
 	path = src/tklib
 	url = https://github.com/tcltk/tklib.git
+	ignore = untracked
 [submodule "src/procarg"]
 	path = src/procarg
 	url = https://github.com/chpock/procarg.git
+	ignore = untracked
 [submodule "src/tcl-vfs"]
 	path = src/tcl-vfs
 	url = https://github.com/greyltc/tcl-vfs.git
+	ignore = untracked
 [submodule "src/metakit"]
 	path = src/metakit
 	url = https://github.com/jcw/metakit
+	ignore = untracked
 [submodule "src/twapi"]
 	path = src/twapi
 	url = https://github.com/chpock/twapi
+	ignore = untracked
 [submodule "src/thread"]
 	path = src/thread
 	url = https://github.com/tcltk/thread
+	ignore = untracked
