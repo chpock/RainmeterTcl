@@ -41,6 +41,24 @@ typedef struct Measure {
     Tcl_DString getStringResult;
 } Measure;
 
+static int RmGetCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    int type = 0;
+
+    // no error handling :(
+    Tcl_GetIntFromObj(interp, objv[1], &type);
+
+    LPCWSTR result = (LPCWSTR)RmGet(rm, type);
+
+    Tcl_DString dsResult;
+    Tcl_WinTCharToUtf(result, -1, &dsResult);
+
+    Tcl_DStringResult(interp, &dsResult);
+
+    return TCL_OK;
+
+}
+
 static int RmExecuteCmd(ClientData skin, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
     Tcl_DString dsStr;
@@ -326,6 +344,7 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
     Tcl_CreateObjCommand(interp, "::rm::raw::readFormula", RmReadFormulaCmd, rm, NULL);
     Tcl_CreateObjCommand(interp, "::rm::raw::replaceVariables", RmReplaceVariablesCmd, rm, NULL);
     Tcl_CreateObjCommand(interp, "::rm::raw::pathToAbsolute", RmPathToAbsoluteCmd, rm, NULL);
+    Tcl_CreateObjCommand(interp, "::rm::raw::get", RmGetCmd, rm, NULL);
 
     void* skin = RmGetSkin(rm);
 

@@ -14,6 +14,18 @@ namespace eval ::rm {
 namespace eval ::rm::raw {
 }
 
+proc ::rm::getMeasureName {} {
+    tailcall ::rm::raw::get 0
+}
+
+proc ::rm::getSettingsFile {} {
+    return [file normalize [::rm::raw::get 2]]
+}
+
+proc ::rm::getSkinName {} {
+    tailcall ::rm::raw::get 3
+}
+
 proc ::rm::lexecute { list } {
     tailcall execute "\[[join $list "\]\["]\]"
 }
@@ -22,24 +34,18 @@ proc ::rm::lexec { list } {
 }
 
 proc ::rm::execute { str } {
-
-    ::rm::raw::execute $str
-
+    tailcall ::rm::raw::execute $str
 }
 proc ::rm::exec { str } {
     tailcall execute $str
 }
 
 proc ::rm::replaceVariables { str } {
-
-    ::rm::raw::replaceVariables $str
-
+    tailcall ::rm::raw::replaceVariables $str
 }
 
 proc ::rm::pathToAbsolute { str } {
-
-    ::rm::raw::pathToAbsolute $str
-
+    return [file normalize [::rm::raw::pathToAbsolute $str]]
 }
 
 proc ::rm::log { args } {
