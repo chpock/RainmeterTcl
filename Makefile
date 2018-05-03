@@ -11,7 +11,7 @@ NAME = RainmeterTcl
 DLLNAME = $(NAME).dll
 
 DEBUG ?= 1
-AMD64 = 1
+AMD64 ?= 1
 
 CC     = $(_ODB_)-w64-mingw32-gcc
 RC     = $(_ODB_)-w64-mingw32-windres
@@ -19,26 +19,26 @@ AR     = $(_ODB_)-w64-mingw32-ar
 RUNLIB = $(_ODB_)-w64-mingw32-ranlib
 CPP    = $(CC)
 
-ifndef DEBUG
-_ODN_ = final
-else
+ifeq ($(DEBUG),1)
 _ODN_ = debug
+else
+_ODN_ = final
 endif
 
-ifdef AMD64
-_ODB_       = x86_64
-CFLAGS      += -m64 -D_AMD64_
+ifeq ($(AMD64),1)
+_ODB_         = x86_64
+CFLAGS        += -m64 -D_AMD64_
 TCLCONFPARAM  = --enable-64bit
-LDFLAGS     += -m64
-RCFLAGS     += -F pe-x86-64
-RMLIBS      = $(BLDDIR)/src/rainmeter-plugin-sdk/API/x64/Rainmeter.lib
+LDFLAGS       += -m64
+RCFLAGS       += -F pe-x86-64
+RMLIBS        = $(BLDDIR)/src/rainmeter-plugin-sdk/API/x64/Rainmeter.lib
 else
-_ODB_       = i686
-CFLAGS      += -m32
+_ODB_         = i686
+CFLAGS        += -m32
 TCLCONFPARAM  = --disable-64bit
-LDFLAGS     += -m32
-RCFLAGS     += -F pe-i386
-RMLIBS      = $(BLDDIR)/src/rainmeter-plugin-sdk/API/x32/Rainmeter.lib
+LDFLAGS       += -m32
+RCFLAGS       += -F pe-i386
+RMLIBS        = $(BLDDIR)/src/rainmeter-plugin-sdk/API/x32/Rainmeter.lib
 endif
 
 BLDDIR := $(shell pwd)
@@ -63,7 +63,7 @@ METAKITLIBS  = $(METAKITDIR)/Mk4tcl2498.$(LIBEXT)
 
 TWAPIDIR     = $(BLDDIR)/src/twapi
 TWAPILIBS    = $(TWAPIDIR)/libtwapi4212.$(LIBEXT)
-ifdef AMD64
+ifeq ($(AMD64),1)
 TWAPILIBS2   = $(TWAPIDIR)/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib
 else
 TWAPILIBS2   = $(TWAPIDIR)/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib
@@ -83,7 +83,6 @@ KIT = $(OUTDIR)/$(NAME).kit
 EXEEXT		= .exe
 OBJEXT		= o
 LIBEXT          = a
-#STLIB_LD	= ${AR} cr
 SHLIB_LD_LIBS	= $(LIBS)
 SHLIB_CFLAGS	=
 SHLIB_SUFFIX	= .dll
@@ -98,10 +97,9 @@ CFLAGS          += -O2 -fomit-frame-pointer
 
 CFLAGS          += -fno-rtti -fno-exceptions -DUNICODE -D_UNICODE -std=gnu++0x
 
-ifdef DEBUG
+ifeq ($(DEBUG),1)
 CFLAGS       += -g
 LDFLAGS      += -Wl,-Map=$(MAP)
-#TCLCONFPARAM += --enable-symbols
 else
 LDFLAGS      += -Wl,--exclude-all-symbols
 endif
