@@ -80,7 +80,7 @@ proc ::rm::raw::Update {} {
         unset UpdateString
     }
 
-    if { [catch [list ::rm::Update] result] } {
+    if { [catch [list ::Update] result] } {
         log -error "Error in the Update procedure: $::errorInfo"
         set result 0
     }
@@ -99,7 +99,7 @@ proc ::rm::raw::Reload { maxValue } {
 
     unset -nocomplain MaxValue
 
-    if { [catch [list ::rm::Reload $maxValue] result] } {
+    if { [catch [list ::Reload $maxValue] result] } {
         log -error "Error in the Reload procedure: $::errorInfo"
     }
 
@@ -108,7 +108,13 @@ proc ::rm::raw::Reload { maxValue } {
         unset MaxValue
     }
 
-    return
+}
+
+proc ::rm::raw::ExecuteBang { bang } {
+
+    if { [catch [list uplevel #0 $bang] result] } {
+        log -error "Error in the script \[$bang\]: $::errorInfo"
+    }
 
 }
 
@@ -126,11 +132,11 @@ apply {{ scriptFile } {
         return
     }
 
-    if { [info commands ::rm::Initialize] eq "" } {
+    if { [info commands ::Initialize] eq "" } {
         return
     }
 
-    if { [catch [list uplevel #0 ::rm::Initialize] errmsg] } {
+    if { [catch [list uplevel #0 ::Initialize] errmsg] } {
         rm log -error "Error while initializing the script file: $scriptFile\n$::errorInfo"
     }
 

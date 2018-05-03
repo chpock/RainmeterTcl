@@ -189,8 +189,7 @@ static char preInitCmd[] =
 "tclKitPreInit"
 ;
 
-PLUGIN_EXPORT void Initialize(Measure** data, void* rm)
-{
+PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
 
     *data = NULL;
 
@@ -293,8 +292,7 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm)
 
 }
 
-PLUGIN_EXPORT void Reload(Measure *data, void* rm, double* maxValue)
-{
+PLUGIN_EXPORT void Reload(Measure *data, void* rm, double* maxValue) {
 
     if (data == NULL) {
         return;
@@ -302,16 +300,17 @@ PLUGIN_EXPORT void Reload(Measure *data, void* rm, double* maxValue)
 
     Tcl_Interp *interp = data->interp;
 
-    Tcl_Namespace *ns = Tcl_FindNamespace(interp, "rm", NULL, TCL_GLOBAL_ONLY);
-
-    Tcl_Command cmd = Tcl_FindCommand(interp, "Reload", ns, TCL_NAMESPACE_ONLY);
-
-    if (cmd == NULL) {
+    if (Tcl_FindCommand(interp, "Reload", NULL, TCL_GLOBAL_ONLY) == NULL) {
         return;
     }
 
-    // TODO: Implement the passing of the maxValue parameter
-    Tcl_Eval(interp, "::rm::raw::Reload 100.0");
+    Tcl_Obj *objv[2];
+
+    objv[0] = Tcl_NewStringObj("::rm::raw::Reload", -1);
+    objv[1] = Tcl_NewDoubleObj(*maxValue);
+
+    // errors are handled on the script level
+    Tcl_EvalObjv(data->interp, 2, objv, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
     Tcl_Obj *result = Tcl_GetVar2Ex(data->interp, "::rm::raw::MaxValue", NULL, 0);
 
@@ -321,8 +320,7 @@ PLUGIN_EXPORT void Reload(Measure *data, void* rm, double* maxValue)
 
 }
 
-PLUGIN_EXPORT LPCWSTR GetString(Measure *data)
-{
+PLUGIN_EXPORT LPCWSTR GetString(Measure *data) {
 
     if (data == NULL) {
         return nullptr;
@@ -344,8 +342,7 @@ PLUGIN_EXPORT LPCWSTR GetString(Measure *data)
 
 }
 
-PLUGIN_EXPORT double Update(Measure *data)
-{
+PLUGIN_EXPORT double Update(Measure *data) {
 
     if (data == NULL) {
         return 0;
@@ -353,11 +350,7 @@ PLUGIN_EXPORT double Update(Measure *data)
 
     Tcl_Interp *interp = data->interp;
 
-    Tcl_Namespace *ns = Tcl_FindNamespace(interp, "rm", NULL, TCL_GLOBAL_ONLY);
-
-    Tcl_Command cmd = Tcl_FindCommand(interp, "Update", ns, TCL_NAMESPACE_ONLY);
-
-    if (cmd == NULL) {
+    if (Tcl_FindCommand(interp, "Update", NULL, TCL_GLOBAL_ONLY) == NULL) {
         return 0;
     }
 
@@ -374,8 +367,7 @@ PLUGIN_EXPORT double Update(Measure *data)
     return result;
 }
 
-PLUGIN_EXPORT void Finalize(Measure *data)
-{
+PLUGIN_EXPORT void Finalize(Measure *data) {
 
     if (data == NULL) {
         return;
@@ -386,6 +378,27 @@ PLUGIN_EXPORT void Finalize(Measure *data)
     }
 
     Tcl_DStringFree(&(data->getStringResult));
+
+}
+
+PLUGIN_EXPORT void ExecuteBang(Measure* data, LPCWSTR args) {
+
+    if (data == NULL) {
+        return;
+    }
+
+    Tcl_Obj *objv[2];
+
+    objv[0] = Tcl_NewStringObj("::rm::raw::ExecuteBang", -1);
+
+    Tcl_DString dsArg;
+    Tcl_WinTCharToUtf(args, -1, &dsArg);
+    objv[1] = Tcl_NewStringObj(Tcl_DStringValue(&dsArg), -1);
+
+    // errors are handled on the script level
+    Tcl_EvalObjv(data->interp, 2, objv, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
+
+    Tcl_DStringFree(&dsArg);
 
 }
 
