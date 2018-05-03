@@ -20,6 +20,12 @@ proc ::rm::replaceVariables { str } {
 
 }
 
+proc ::rm::pathToAbsolute { str } {
+
+    ::rm::raw::pathToAbsolute $str
+
+}
+
 proc ::rm::log { args } {
 
    set usage "usage: ?-error|-warning|-notice|-debug? message"

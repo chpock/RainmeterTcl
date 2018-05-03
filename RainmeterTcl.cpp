@@ -42,6 +42,20 @@ typedef struct Measure {
 } Measure;
 
 
+static int RmPathToAbsoluteCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    Tcl_DString dsStr;
+    LPCWSTR result = RmPathToAbsolute(rm, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetStringFromObj(objv[1], nullptr), -1, &dsStr));
+    Tcl_DStringFree(&dsStr);
+
+    Tcl_DString dsResult;
+    Tcl_WinTCharToUtf(result, -1, &dsResult);
+
+    Tcl_DStringResult(interp, &dsResult);
+
+    return TCL_OK;
+
+}
 
 static int RmReplaceVariablesCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
@@ -300,6 +314,7 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
     Tcl_CreateObjCommand(interp, "::rm::raw::readString", RmReadStringCmd, rm, NULL);
     Tcl_CreateObjCommand(interp, "::rm::raw::readFormula", RmReadFormulaCmd, rm, NULL);
     Tcl_CreateObjCommand(interp, "::rm::raw::replaceVariables", RmReplaceVariablesCmd, rm, NULL);
+    Tcl_CreateObjCommand(interp, "::rm::raw::pathToAbsolute", RmPathToAbsoluteCmd, rm, NULL);
 
     Tcl_Eval(interp, "package require rm");
 
