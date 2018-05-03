@@ -14,6 +14,89 @@ namespace eval ::rm {
 namespace eval ::rm::raw {
 }
 
+proc ::rm::quote { str } {
+    return "\"\"\"$str\"\"\""
+}
+
+proc ::rm::bang { bang args } {
+
+    set ret [list "!$bang"]
+
+    foreach arg $args {
+        lappend ret [quote $arg]
+    }
+
+    return "\[[join $ret { }]\]"
+
+}
+
+proc ::rm::setSectionOption { section variable value } {
+    tailcall execute [bang SetOption $section $variable $value]
+}
+
+proc ::rm::updateMeasure { ms } {
+    tailcall execute [bang UpdateMeasure $ms]
+}
+
+proc ::rm::setVariable { var value } {
+    tailcall execute [bang SetVariable $var $value]
+}
+
+proc ::rm::getMeasure { args } {
+
+    if { [llength $args] < 1 || [llength $args > 2] } {
+        return -code error "[info level 0]: wrong # arguments - $args"
+    }
+
+    if { [llength $args] == 1 } {
+
+        set ms [lindex $args 0]
+
+        set req "\[$ms\]"
+
+    } {
+
+        set ms [lindex $args 1]
+
+        switch -glob -- [lindex $args 0] {
+            -n* { set req "\[${ms}:\]" }
+            -p* { set req "\[${ms}:%\]" }
+            -min* { set req "\[${ms}:MinValue\]" }
+            -max* { set req "\[${ms}:MaxValue\]" }
+            -url* { set req "\[${ms}:EncodeURL\]" }
+            -time* { set req "\[${ms}:Timestamp\]" }
+            default {
+                return -code error "[info level 0]: unknown type - '[lindex $args 0]'"
+            }
+        }
+
+    }
+
+    set result [replaceVariables $req]
+
+    if { $result eq $req } {
+        log -warning "Measure was not found for request: $req"
+        return ""
+    }
+
+    return $result
+
+}
+
+proc ::rm::getVariable { var { default {} } } {
+
+    set var "#${var}#"
+
+    set result [replaceVariables $var]
+
+    if { $var eq $result } {
+        set result $default
+    }
+
+    return $result
+
+}
+
 proc ::rm::getMeasureName {} {
     tailcall ::rm::raw::get 0
 }
@@ -27,7 +110,7 @@ proc ::rm::getSkinName {} {
 }
 
 proc ::rm::lexecute { list } {
-    tailcall execute "\[[join $list "\]\["]\]"
+    tailcall execute [join $list {}]
 }
 proc ::rm::lexec { list } {
     tailcall lexecute $list
