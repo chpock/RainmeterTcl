@@ -14,6 +14,12 @@ namespace eval ::rm {
 namespace eval ::rm::raw {
 }
 
+proc ::rm::replaceVariables { str } {
+
+    ::rm::raw::replaceVariables $str
+
+}
+
 proc ::rm::log { args } {
 
    set usage "usage: ?-error|-warning|-notice|-debug? message"
