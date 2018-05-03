@@ -48,6 +48,10 @@ proc ::rm::pathToAbsolute { str } {
     return [file normalize [::rm::raw::pathToAbsolute $str]]
 }
 
+proc ::rm::readPath { option default } {
+    tailcall pathToAbsolute [readString $option $default]
+}
+
 proc ::rm::log { args } {
 
    set usage "usage: ?-error|-warning|-notice|-debug? message"
@@ -82,7 +86,7 @@ proc ::rm::readString { option { default {} } { replaceMeasures 1 } } {
         return -code error "[info level 0]: boolean expected instead of '$replaceMeasures'"
     }
 
-    ::rm::raw::readString $option $default $replaceMeasures
+    tailcall ::rm::raw::readString $option $default $replaceMeasures
 
 }
 
@@ -92,9 +96,19 @@ proc ::rm::readFormula { option { default 0 } } {
         return -code error "[info level 0]: double expected instead of '$default'"
     }
 
-    ::rm::raw::readFormula $option $default
+    tailcall ::rm::raw::readFormula $option $default
 
 }
+
+proc ::rm::readInt { option { default 0 } } {
+    tailcall expr { round([readFormula $option $default]) }
+}
+
+proc ::rm::readDouble { option { default 0 } } {
+    tailcall expr { 1.0 * [readFormula $option $default] }
+}
+
+#-----
 
 proc ::rm::setUpdateString { string } {
     set ::rm::raw::UpdateString $string
