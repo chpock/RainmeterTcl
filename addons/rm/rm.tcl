@@ -14,6 +14,22 @@ namespace eval ::rm {
 namespace eval ::rm::raw {
 }
 
+proc ::rm::lexecute { list } {
+    tailcall execute "\[[join $list "\]\["]\]"
+}
+proc ::rm::lexec { list } {
+    tailcall lexecute $list
+}
+
+proc ::rm::execute { str } {
+
+    ::rm::raw::execute $str
+
+}
+proc ::rm::exec { str } {
+    tailcall execute $str
+}
+
 proc ::rm::replaceVariables { str } {
 
     ::rm::raw::replaceVariables $str
