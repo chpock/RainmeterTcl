@@ -6,6 +6,8 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
+package require procarg
+
 namespace eval ::rm {
     namespace export *
     namespace ensemble create
@@ -13,6 +15,8 @@ namespace eval ::rm {
 
 namespace eval ::rm::raw {
 }
+
+# ======== helpers
 
 proc ::rm::quote { str } {
     return "\"\"\"$str\"\"\""
@@ -30,83 +34,12 @@ proc ::rm::bang { bang args } {
 
 }
 
-proc ::rm::setSectionOption { section variable value } {
-    tailcall execute [bang SetOption $section $variable $value]
+proc ::rm::replaceVariables { str } {
+    tailcall ::rm::raw::replaceVariables $str
 }
 
-proc ::rm::updateMeasure { ms } {
-    tailcall execute [bang UpdateMeasure $ms]
-}
-
-proc ::rm::setVariable { var value } {
-    tailcall execute [bang SetVariable $var $value]
-}
-
-proc ::rm::getMeasure { args } {
-
-    if { [llength $args] < 1 || [llength $args > 2] } {
-        return -code error "[info level 0]: wrong # arguments - $args"
-    }
-
-    if { [llength $args] == 1 } {
-
-        set ms [lindex $args 0]
-
-        set req "\[$ms\]"
-
-    } {
-
-        set ms [lindex $args 1]
-
-        switch -glob -- [lindex $args 0] {
-            -n* { set req "\[${ms}:\]" }
-            -p* { set req "\[${ms}:%\]" }
-            -min* { set req "\[${ms}:MinValue\]" }
-            -max* { set req "\[${ms}:MaxValue\]" }
-            -url* { set req "\[${ms}:EncodeURL\]" }
-            -time* { set req "\[${ms}:Timestamp\]" }
-            default {
-                return -code error "[info level 0]: unknown type - '[lindex $args 0]'"
-            }
-        }
-
-    }
-
-    set result [replaceVariables $req]
-
-    if { $result eq $req } {
-        log -warning "Measure was not found for request: $req"
-        return ""
-    }
-
-    return $result
-
-}
-
-proc ::rm::getVariable { var { default {} } } {
-
-    set var "#${var}#"
-
-    set result [replaceVariables $var]
-
-    if { $var eq $result } {
-        set result $default
-    }
-
-    return $result
-
-}
-
-proc ::rm::getMeasureName {} {
-    tailcall ::rm::raw::get 0
-}
-
-proc ::rm::getSettingsFile {} {
-    return [file normalize [::rm::raw::get 2]]
-}
-
-proc ::rm::getSkinName {} {
-    tailcall ::rm::raw::get 3
+proc ::rm::pathToAbsolute { str } {
+    return [file normalize [::rm::raw::pathToAbsolute $str]]
 }
 
 proc ::rm::lexecute { list } {
@@ -123,16 +56,8 @@ proc ::rm::exec { str } {
     tailcall execute $str
 }
 
-proc ::rm::replaceVariables { str } {
-    tailcall ::rm::raw::replaceVariables $str
-}
-
-proc ::rm::pathToAbsolute { str } {
-    return [file normalize [::rm::raw::pathToAbsolute $str]]
-}
-
-proc ::rm::readPath { option default } {
-    tailcall pathToAbsolute [readString $option $default]
+proc ::rm::getPath { option default } {
+    tailcall pathToAbsolute [getOption $option -default $default]
 }
 
 proc ::rm::log { args } {
@@ -163,43 +88,136 @@ proc ::rm::log { args } {
 
 }
 
-proc ::rm::readString { option { default {} } { replaceMeasures 1 } } {
-
-    if { ![string is boolean -strict $replaceMeasures] } {
-        return -code error "[info level 0]: boolean expected instead of '$replaceMeasures'"
-    }
-
-    tailcall ::rm::raw::readString $option $default $replaceMeasures
-
-}
-
-proc ::rm::readFormula { option { default 0 } } {
-
-    if { ![string is double -strict $default] } {
-        return -code error "[info level 0]: double expected instead of '$default'"
-    }
-
-    tailcall ::rm::raw::readFormula $option $default
-
-}
-
-proc ::rm::readInt { option { default 0 } } {
-    tailcall expr { round([readFormula $option $default]) }
-}
-
-proc ::rm::readDouble { option { default 0 } } {
-    tailcall expr { 1.0 * [readFormula $option $default] }
-}
-
-#-----
+# ======== events
 
 proc ::rm::setUpdateString { string } {
     set ::rm::raw::UpdateString $string
 }
 
-proc ::rm::setMaxValue { value } {
+proc ::rm::setReloadMaxValue { value } {
+
+    if { ![string is double -strict $value] } {
+        log -warning "[info level 0]: value is not double: $value"
+        set value 0
+    }
+
     set ::rm::raw::MaxValue $value
 }
+
+# ======== me
+
+proc ::rm::getSettingsFile {} {
+    return [file normalize [::rm::raw::get 2]]
+}
+
+proc ::rm::getSkinName {} {
+    tailcall ::rm::raw::get 3
+}
+
+proc ::rm::getMeasureName {} {
+    tailcall ::rm::raw::get 0
+}
+
+proc ::rm::getOption { option {args {
+    {0                string -allowempty false}
+    {-default         string -default {}}
+    {-replaceMeasures boolean -default true}
+    {-type            string -restrict {string integer double} -default string}
+}} } {
+
+    if { $opts(-type) eq "string" } {
+        tailcall ::rm::raw::readString $option $opts(-default) $opts(-replaceMeasures)
+    }
+
+    if { $opts(-default) eq "" } {
+        set opts(-default) 0
+    } elseif { ![string is $opts(-type) -strict $opts(-default)] } {
+        rm log -warning "[info level 0]: the default value for the option '$option' has not allowed type \($opts(-type)\): $opts(-default)"
+        set opts(-default) 0
+    }
+
+    set val [::rm::raw::readFormula $option $opts(-default)]
+
+    if { $opts(-type) eq "integer" } {
+        return [expr { round($val) }]
+    }
+
+    return [expr { 1.0 * $val }]
+
+}
+
+# ======== variables
+
+proc ::rm::setVariable { var value } {
+    tailcall execute [bang SetVariable $var $value]
+}
+
+proc ::rm::getVariable { var {args {
+    {0        string -allowempty false}
+    {-default string}
+}} } {
+
+    set req "#${var}#"
+
+    set result [replaceVariables $req]
+
+    if { $var eq $result } {
+        if { [info exists opts(-default)] } {
+            set result $opts(-default)
+        } {
+            log -warning "Variable not found: $var"
+        }
+    }
+
+    return $result
+
+}
+
+# ======== foreign measures
+
+proc ::rm::updateMeasure { ms } {
+    tailcall execute [bang UpdateMeasure $ms]
+}
+
+proc ::rm::getMeasureValue { ms {args {
+    {0      string -allowempty false}
+    {-type  string -restrict {number string percentage min max urlencode timestamp} -default number -allowempty false}
+}} } {
+
+    switch -exact -- $opts(-type) {
+        number     { set req ":" }
+        string     { set req ""  }
+        percentage { set req ":%" }
+        min        { set req ":MinValue" }
+        max        { set req ":MaxValue" }
+        urlencode  { set req ":EncodeURL" }
+        timestamp  { set req ":Timestamp" }
+    }
+
+    set req "\[$ms$req\]"
+    set result [replaceVariables $req]
+
+    if { $result eq $req } {
+        log -warning "Measure was not found for request: $req"
+        return ""
+    }
+
+    return $result
+
+}
+
+# ======== foreign sections
+
+proc ::rm::setSectionOption { section variable value } {
+    tailcall execute [bang SetOption $section $variable $value]
+}
+
+
+
+
+#-------------------------------------------------------------------------
+#----- RAW, must not be used
+#-------------------------------------------------------------------------
 
 proc ::rm::raw::Update {} {
 
@@ -243,6 +261,8 @@ proc ::rm::raw::Reload { maxValue } {
 
 proc ::rm::raw::ExecuteBang { bang } {
 
+    log -debug "exec: $bang"
+
     if { [catch [list uplevel #0 $bang] result] } {
         log -error "Error in the script \[$bang\]: $::errorInfo"
     }
@@ -271,4 +291,4 @@ apply {{ scriptFile } {
         rm log -error "Error while initializing the script file: $scriptFile\n$::errorInfo"
     }
 
-}} [rm readString "ScriptFile"]
+}} [rm getOption "ScriptFile"]

@@ -10,7 +10,7 @@ NAME = RainmeterTcl
 
 DLLNAME = $(NAME).dll
 
-DEBUG ?= 1
+DEBUG ?= 0
 AMD64 ?= 1
 
 CC     = $(_ODB_)-w64-mingw32-gcc
@@ -169,9 +169,9 @@ $(DLLFULLNAME).base: $(LINK_OBJS)
 
 $(DLLFULLNAME): $(DLLFULLNAME).base $(KIT)
 	rm -f "$@"
-	tools/cv2pdb $(shell cygpath -w $(DLLFULLNAME).base) $(shell cygpath -w $@)
-	cat $(KIT) >> "$@"
-	#cat $^ >> "$@"
+	#tools/cv2pdb $(shell cygpath -w $(DLLFULLNAME).base) $(shell cygpath -w $@)
+	#cat $(KIT) >> "$@"
+	cat $^ >> "$@"
 
 $(OBJDIR): $(OUTDIR)
 	mkdir -p "$(OBJDIR)"
@@ -217,9 +217,9 @@ build: $(OBJDIR) $(DLLFULLNAME)
 	@echo Build DONE.
 
 clean:
-	rm -rf out.*
-	make -C $(TCLDIR)/win clean || echo "Already cleaned"
-	make -C $(TKDIR)/win clean || echo "Already cleaned"
+	rm -rf out.*/*
+	make -C $(TCLDIR)/win clean || echo "Nothing to do"
+	make -C $(TKDIR)/win clean || echo "Nothing to do"
 	make -C $(TWAPIDIR) clean
 	make -C $(METAKITDIR) clean
 	make -C $(TCLVFSDIR) clean

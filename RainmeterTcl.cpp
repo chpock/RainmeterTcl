@@ -445,6 +445,8 @@ PLUGIN_EXPORT void Finalize(Measure *data) {
 
     Tcl_DStringFree(&(data->getStringResult));
 
+    ckfree(data);
+
 }
 
 PLUGIN_EXPORT void ExecuteBang(Measure* data, LPCWSTR args) {

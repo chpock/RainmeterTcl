@@ -3,7 +3,7 @@
 #define VER_MAJOR 0
 #define VER_MINOR 0
 #define VER_REVIS 1
-#define VER_BUILD 223
+#define VER_BUILD 241
 
 #define _W(arg) L##arg
 #define _STR(arg) _W(#arg)
