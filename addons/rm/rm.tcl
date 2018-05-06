@@ -147,13 +147,18 @@ proc ::rm::log { args } {
            -e* { set level 1 }
            -w* { set level 2 }
            -n* { set level 3 }
-           -d* { set level 4 }
+           -d* {
+               if { ![info exists ::debug] || $::debug ne "trace" || ![string is boolean -strict $::debug] || !$::debug } {
+                   return
+               }
+               set level 4
+           }
            -t* {
                if { ![info exists ::debug] || $::debug ne "trace" } {
                    return
                }
                set level 4
-               set prefix "\[TRACE\] "
+               set prefix "TRACE: "
            }
            default {
                return -code error "[info level 0]: wrong log level '[lindex $args 1]', $usage"
@@ -587,7 +592,7 @@ proc ::rm::raw::Reload { maxValue } {
 
 proc ::rm::raw::ExecuteBang { script } {
 
-    ::rm::log -debug "Exec script: $script"
+    ::rm::log -trace "Exec script: $script"
 
     if { [catch [list uplevel #0 $script] result] } {
         ::rm::log -error "Error in the script \[$script\]: $::errorInfo"
@@ -607,12 +612,14 @@ proc ::rm::raw::Finalize {} {
 
 proc ::rm::raw::Eval { args } {
 
-    ::rm::log -debug "Eval procedure: $args"
+    ::rm::log -trace "Eval procedure: $args"
 
     if { [catch [list uplevel #0 $args] result] } {
         ::rm::log -error "Error during the eval \"[join $args {, }]\": $::errorInfo"
         return ""
     }
+
+    ::rm::log -trace "Eval procedure result: $result"
 
     return $result
 
