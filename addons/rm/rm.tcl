@@ -148,7 +148,7 @@ proc ::rm::log { args } {
            -w* { set level 2 }
            -n* { set level 3 }
            -d* {
-               if { ![info exists ::debug] || $::debug ne "trace" || ![string is boolean -strict $::debug] || !$::debug } {
+               if { ![info exists ::debug] || ([string is boolean -strict $::debug] && !$::debug) || (![string is boolean -strict $::debug] && $::debug ne "trace") } {
                    return
                }
                set level 4
