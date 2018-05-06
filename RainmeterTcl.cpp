@@ -39,6 +39,7 @@ extern char* TclSetPreInitScript (char*);
 typedef struct Measure {
     Tcl_Interp *interp;
     Tcl_DString getStringResult;
+    Tcl_DString evalStringResult;
 } Measure;
 
 static int RmGetCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
@@ -62,7 +63,7 @@ static int RmGetCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const 
 static int RmExecuteCmd(ClientData skin, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
     Tcl_DString dsStr;
-    RmExecute(skin, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetStringFromObj(objv[1], nullptr), -1, &dsStr));
+    RmExecute(skin, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetString(objv[1]), -1, &dsStr));
     Tcl_DStringFree(&dsStr);
 
     Tcl_ResetResult(interp);
@@ -74,7 +75,7 @@ static int RmExecuteCmd(ClientData skin, Tcl_Interp *interp, int objc, Tcl_Obj *
 static int RmPathToAbsoluteCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
     Tcl_DString dsStr;
-    LPCWSTR result = RmPathToAbsolute(rm, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetStringFromObj(objv[1], nullptr), -1, &dsStr));
+    LPCWSTR result = RmPathToAbsolute(rm, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetString(objv[1]), -1, &dsStr));
     Tcl_DStringFree(&dsStr);
 
     Tcl_DString dsResult;
@@ -89,7 +90,7 @@ static int RmPathToAbsoluteCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_
 static int RmReplaceVariablesCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
     Tcl_DString dsStr;
-    LPCWSTR result = RmReplaceVariables(rm, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetStringFromObj(objv[1], nullptr), -1, &dsStr));
+    LPCWSTR result = RmReplaceVariables(rm, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetString(objv[1]), -1, &dsStr));
     Tcl_DStringFree(&dsStr);
 
     Tcl_DString dsResult;
@@ -108,7 +109,7 @@ static int RmLogCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const 
     Tcl_GetIntFromObj(interp, objv[1], (int *)&level);
 
     Tcl_DString dsMessage;
-    RmLog(rm, level, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetStringFromObj(objv[2], nullptr), -1, &dsMessage));
+    RmLog(rm, level, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetString(objv[2]), -1, &dsMessage));
     Tcl_DStringFree(&dsMessage);
 
     Tcl_SetObjResult(interp, objv[2]);
@@ -128,8 +129,8 @@ static int RmReadStringCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj 
 
     LPCWSTR str = RmReadString(
         rm,
-        Tcl_WinUtfToTChar(Tcl_GetStringFromObj(objv[1], nullptr), -1, &dsOption),
-        Tcl_WinUtfToTChar(Tcl_GetStringFromObj(objv[2], nullptr), -1, &dsDefault),
+        Tcl_WinUtfToTChar(Tcl_GetString(objv[1]), -1, &dsOption),
+        Tcl_WinUtfToTChar(Tcl_GetString(objv[2]), -1, &dsDefault),
         replaceMeasures);
 
     Tcl_DStringFree(&dsOption);
@@ -152,7 +153,7 @@ static int RmReadFormulaCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj
 
     double result = RmReadFormula(
         rm,
-        Tcl_WinUtfToTChar(Tcl_GetStringFromObj(objv[1], nullptr), -1, &dsOption),
+        Tcl_WinUtfToTChar(Tcl_GetString(objv[1]), -1, &dsOption),
         defValue);
 
     Tcl_DStringFree(&dsOption);
@@ -254,23 +255,23 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
 
     Tcl_Interp *interp = Tcl_CreateInterp();
 
-    Tcl_Channel stdoutChannel = Tcl_CreateChannel(&stdoutChannelType, "rmtstdout", rm, TCL_WRITABLE);
-    if (stdoutChannel) {
-        Tcl_SetChannelOption(NULL, stdoutChannel,"-translation", "lf");
-        Tcl_SetChannelOption(NULL, stdoutChannel,"-buffering", "none");
-        Tcl_SetChannelOption(NULL, stdoutChannel,"-encoding", "unicode");
-        Tcl_RegisterChannel(interp, stdoutChannel);
-    }
-    Tcl_SetStdChannel(stdoutChannel, TCL_STDOUT);
+//    Tcl_Channel stdoutChannel = Tcl_CreateChannel(&stdoutChannelType, "rmtstdout", rm, TCL_WRITABLE);
+//    if (stdoutChannel) {
+//        Tcl_SetChannelOption(NULL, stdoutChannel,"-translation", "lf");
+//        Tcl_SetChannelOption(NULL, stdoutChannel,"-buffering", "none");
+//        Tcl_SetChannelOption(NULL, stdoutChannel,"-encoding", "unicode");
+//        Tcl_RegisterChannel(interp, stdoutChannel);
+//    }
+//    Tcl_SetStdChannel(stdoutChannel, TCL_STDOUT);
 
-    Tcl_Channel stderrChannel = Tcl_CreateChannel(&stderrChannelType, "rmtstderr", rm, TCL_WRITABLE);
-    if (stderrChannel) {
-        Tcl_SetChannelOption(NULL, stderrChannel,"-translation", "lf");
-        Tcl_SetChannelOption(NULL, stderrChannel,"-buffering", "none");
-        Tcl_SetChannelOption(NULL, stderrChannel,"-encoding", "unicode");
-        Tcl_RegisterChannel(interp, stderrChannel);
-    }
-    Tcl_SetStdChannel(stderrChannel, TCL_STDERR);
+//    Tcl_Channel stderrChannel = Tcl_CreateChannel(&stderrChannelType, "rmtstderr", rm, TCL_WRITABLE);
+//    if (stderrChannel) {
+//        Tcl_SetChannelOption(NULL, stderrChannel,"-translation", "lf");
+//        Tcl_SetChannelOption(NULL, stderrChannel,"-buffering", "none");
+//        Tcl_SetChannelOption(NULL, stderrChannel,"-encoding", "unicode");
+//        Tcl_RegisterChannel(interp, stderrChannel);
+//    }
+//    Tcl_SetStdChannel(stderrChannel, TCL_STDERR);
 
     if (Mk4tcl_Init(interp) != TCL_OK) {
         RmLog(rm, LOG_ERROR, L"Could not init Mk4tcl extension");
@@ -355,12 +356,13 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
     *data = (Measure*)ckalloc(sizeof(Measure));
     (*data)->interp = interp;
     Tcl_DStringInit(&((*data)->getStringResult));
+    Tcl_DStringInit(&((*data)->evalStringResult));
 
 }
 
 PLUGIN_EXPORT void Reload(Measure *data, void* rm, double* maxValue) {
 
-    if (data == NULL) {
+    if (data == NULL || data->interp == NULL) {
         return;
     }
 
@@ -386,9 +388,40 @@ PLUGIN_EXPORT void Reload(Measure *data, void* rm, double* maxValue) {
 
 }
 
+PLUGIN_EXPORT LPCWSTR eval(Measure* data, const int argc, const WCHAR* argv[]) {
+
+    if (data == NULL || data->interp == NULL) {
+        return nullptr;
+    }
+
+    Tcl_DString ds;
+
+    Tcl_DStringFree(&(data->evalStringResult));
+
+    Tcl_Interp *interp = data->interp;
+
+    Tcl_Obj *objv[argc+1];
+
+    objv[0] = Tcl_NewStringObj("::rm::raw::Eval", -1);
+    for (auto i = 0; i < argc; ++i) {
+        Tcl_WinTCharToUtf(argv[i], -1, &ds);
+        objv[i+1] = Tcl_NewStringObj(Tcl_DStringValue(&ds), -1);
+        Tcl_DStringFree(&ds);
+    }
+
+    Tcl_EvalObjv(data->interp, argc+1, objv, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
+
+    Tcl_DStringGetResult(data->interp, &ds);
+    Tcl_WinUtfToTChar(Tcl_DStringValue(&ds), -1, &(data->evalStringResult));
+    Tcl_DStringFree(&ds);
+
+    return (LPCWSTR)Tcl_DStringValue(&(data->evalStringResult));
+
+}
+
 PLUGIN_EXPORT LPCWSTR GetString(Measure *data) {
 
-    if (data == NULL) {
+    if (data == NULL || data->interp == NULL) {
         return nullptr;
     }
 
@@ -410,7 +443,7 @@ PLUGIN_EXPORT LPCWSTR GetString(Measure *data) {
 
 PLUGIN_EXPORT double Update(Measure *data) {
 
-    if (data == NULL) {
+    if (data == NULL || data->interp == NULL) {
         return 0;
     }
 
@@ -420,11 +453,11 @@ PLUGIN_EXPORT double Update(Measure *data) {
         return 0;
     }
 
-    // TODO: Optimize
-    // there should be a simple way to run single
-    // procedure from known namespace and without
-    // arguments
-    Tcl_Eval(interp, "::rm::raw::Update");
+    Tcl_Obj *objv[1];
+
+    objv[0] = Tcl_NewStringObj("::rm::raw::Update", -1);
+
+    Tcl_EvalObjv(data->interp, 1, objv, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
     double result = 0;
 
@@ -440,10 +473,25 @@ PLUGIN_EXPORT void Finalize(Measure *data) {
     }
 
     if (data->interp != NULL) {
+
+        Tcl_Interp *interp = data->interp;
+
+        if (Tcl_FindCommand(interp, "Finalize", NULL, TCL_GLOBAL_ONLY) != NULL) {
+
+            Tcl_Obj *objv[1];
+
+            objv[0] = Tcl_NewStringObj("::rm::raw::Finalize", -1);
+
+            // errors are handled on the script level
+            Tcl_EvalObjv(data->interp, 1, objv, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
+
+        }
+
         Tcl_DeleteInterp(data->interp);
     }
 
     Tcl_DStringFree(&(data->getStringResult));
+    Tcl_DStringFree(&(data->evalStringResult));
 
     ckfree(data);
 
@@ -451,7 +499,7 @@ PLUGIN_EXPORT void Finalize(Measure *data) {
 
 PLUGIN_EXPORT void ExecuteBang(Measure* data, LPCWSTR args) {
 
-    if (data == NULL) {
+    if (data == NULL || data->interp == NULL) {
         return;
     }
 

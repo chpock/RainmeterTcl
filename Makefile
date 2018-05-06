@@ -98,11 +98,15 @@ CFLAGS          += -O2 -fomit-frame-pointer
 CFLAGS          += -fno-rtti -fno-exceptions -DUNICODE -D_UNICODE -std=gnu++0x
 
 ifeq ($(DEBUG),1)
-CFLAGS       += -g
-LDFLAGS      += -Wl,-Map=$(MAP)
+CFLAGS        += -g
+LDFLAGS       += -Wl,-Map=$(MAP)
+TCLCONFPARAM  += --enable-symbols
 else
-LDFLAGS      += -Wl,--exclude-all-symbols
+LDFLAGS       += -s -Wl,--exclude-all-symbols
+TCLCONFPARAM  += --disable-symbols
 endif
+
+TCLCONFPARAM += --enable-threads --disable-shared --enable-static
 
 LINK_OBJS = $(OBJDIR)/$(NAME).$(OBJEXT) \
             $(RMLIBS) \
@@ -150,6 +154,7 @@ $(SETUP_EXE): $(SETUP_LINK_OBJS)
 	$(CC) $(LDFLAGS) -o $@ -pipe -static-libgcc $(SETUP_LINK_OBJS) $(SHLIB_LD_LIBS)
 
 $(KIT): $(SETUP_EXE) $(SETUP_TCL) $(ADDONS)
+	tools/nagelfar_sh.exe -exitcode -s syntaxdb86.tcl addons\rm\rm.tcl src\procarg\procarg.tcl
 	$(SETUP_EXE) $(shell cygpath -w $(BLDDIR)/$(SETUP_NAME).tcl) \
 	             $(shell cygpath -w $(KIT)) \
 	             --tcl=$(shell cygpath -w $(TCLDIR)) \
@@ -163,15 +168,18 @@ $(OBJDIR)/$(NAME).res.$(OBJEXT): $(NAME).rc version.hpp
 	$(RC) $(RCFLAGS) -o $@ --include "include" $<
 
 $(DLLFULLNAME).base: $(LINK_OBJS)
-	#@rm -f "$@"
-#	${SHLIB_LD} $(CC) $(LDFLAGS) -o $@ -pipe -static-libgcc -municode -Wl,--kill-at $(LINK_OBJS) $(SHLIB_LD_LIBS)
+	@#@rm -f "$@"
+	@#${SHLIB_LD} $(CC) $(LDFLAGS) -o $@ -pipe -static-libgcc -municode -Wl,--kill-at $(LINK_OBJS) $(SHLIB_LD_LIBS)
 	$(CC) -shared $(LDFLAGS) -o "$@" -pipe -static-libgcc -municode $(LINK_OBJS) $(SHLIB_LD_LIBS)
 
 $(DLLFULLNAME): $(DLLFULLNAME).base $(KIT)
 	rm -f "$@"
-	#tools/cv2pdb $(shell cygpath -w $(DLLFULLNAME).base) $(shell cygpath -w $@)
-	#cat $(KIT) >> "$@"
+ifeq ($(DEBUG),1)
+	tools/cv2pdb $(shell cygpath -w $(DLLFULLNAME).base) $(shell cygpath -w $@)
+	cat $(KIT) >> "$@"
+else
 	cat $^ >> "$@"
+endif
 
 $(OBJDIR): $(OUTDIR)
 	mkdir -p "$(OBJDIR)"
@@ -187,30 +195,30 @@ $(OUTDIR)/lib/tcl$(TCLVERX): $(OUTDIR)/lib $(OUTDIR)/lib/logger $(OUTDIR)/lib/ue
 	cd "$(TCLDIR)/library" && cp -r * "$@"
 
 $(TCLSH) $(TCLLIBS):
-	cd $(TCLDIR)/win && $(TCLCONFFLAGS) ./configure --enable-threads --disable-shared $(TCLCONFPARAM)
+	cd $(TCLDIR)/win && $(TCLCONFFLAGS) ./configure  $(TCLCONFPARAM)
 	make -C $(TCLDIR)/win all
 
 $(TKLIBS): $(TCLLIBS)
-	cd $(TKDIR)/win && $(TCLCONFFLAGS) ./configure --disable-shared $(TCLCONFPARAM)
+	cd $(TKDIR)/win && $(TCLCONFFLAGS) ./configure $(TCLCONFPARAM)
 	make -C $(TKDIR)/win all
 
 $(TCLVFSLIBS): $(TCLLIBS)
-	cd $(TCLVFSDIR) && $(TCLCONFFLAGS) ./configure --disable-shared --enable-threads --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
+	cd $(TCLVFSDIR) && $(TCLCONFFLAGS) ./configure --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
 	make -C $(TCLVFSDIR) all
 
 $(METAKITLIBS): $(TCLLIBS)
-	cd $(METAKITDIR) && $(TCLCONFFLAGS) ./tcl/configure --disable-shared --enable-threads --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
+	cd $(METAKITDIR) && $(TCLCONFFLAGS) ./tcl/configure --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
 	make -C $(METAKITDIR) all
 
 $(TWAPILIBS): $(TCLLIBS)
-	cd $(TWAPIDIR) && $(TCLCONFFLAGS) CC="$(CC) -DTWAPI_STATIC_BUILD=1" ./configure --disable-shared --enable-threads --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
+	cd $(TWAPIDIR) && $(TCLCONFFLAGS) CC="$(CC) -DTWAPI_STATIC_BUILD=1" ./configure --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
 	make -C $(TWAPIDIR) all
 
 $(THREADLIBS): $(TCLLIBS)
 	# workaround for configure's bug
 	mkdir -p $(THREADDIR)/tclconfig
 	touch $(THREADDIR)/tclconfig/install.sh
-	cd $(THREADDIR) && $(TCLCONFFLAGS) ./configure --disable-shared --enable-threads --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
+	cd $(THREADDIR) && $(TCLCONFFLAGS) ./configure --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
 	make -C $(THREADDIR) all
 
 build: $(OBJDIR) $(DLLFULLNAME)

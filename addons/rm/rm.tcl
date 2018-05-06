@@ -6,7 +6,17 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-package require procarg
+#set debug trace
+
+##nagelfar syntax ::rm::raw::replaceVariables 1
+##nagelfar syntax ::rm::raw::pathToAbsolute 1
+##nagelfar syntax ::rm::raw::execute 1
+##nagelfar syntax ::rm::raw::get 1
+##nagelfar syntax ::rm::raw::log 2
+##nagelfar syntax ::rm::raw::readString 3
+##nagelfar syntax ::rm::raw::readFormula 2
+
+package require procarg 1.0.1
 
 namespace eval ::rm {
     namespace export *
@@ -19,7 +29,16 @@ namespace eval ::rm::raw {
 # ======== helpers
 
 proc ::rm::quote { str } {
-    return "\"\"\"$str\"\"\""
+
+    if { [string first \" $str] == -1 } {
+        return \"$str\"
+    } elseif { [string first \"\"\" $str] == -1 } {
+        return "\"\"\"$str\"\"\""
+    }
+
+    log -error "[info level 0]: could not quote the value, too many quotes: $str"
+    return $str
+
 }
 
 proc ::rm::bang { bang args } {
@@ -34,12 +53,31 @@ proc ::rm::bang { bang args } {
 
 }
 
+proc ::rm::lbang { args } {
+
+    set ret [list]
+
+    foreach bang $args {
+        lappend ret [bang {*}$bang]
+    }
+
+    return [join $ret {}]
+
+}
+
 proc ::rm::replaceVariables { str } {
+    _traceCall
+
     tailcall ::rm::raw::replaceVariables $str
+#    set result [::rm::raw::replaceVariables $str]
+#    log -trace "Got result from RM API: $result"
+#    return $result
 }
 
 proc ::rm::pathToAbsolute { str } {
-    return [file normalize [::rm::raw::pathToAbsolute $str]]
+    _traceCall
+
+    return [::rm::raw::pathToAbsolute $str]
 }
 
 proc ::rm::lexecute { list } {
@@ -48,8 +86,16 @@ proc ::rm::lexecute { list } {
 proc ::rm::lexec { list } {
     tailcall lexecute $list
 }
+proc ::rm::execBang { args } {
+    tailcall execute [bang {*}$args]
+}
+proc ::rm::lexecBang { args } {
+    tailcall execute [lbang {*}$args]
+}
 
 proc ::rm::execute { str } {
+    _traceCall
+
     tailcall ::rm::raw::execute $str
 }
 proc ::rm::exec { str } {
@@ -57,12 +103,37 @@ proc ::rm::exec { str } {
 }
 
 proc ::rm::getPath { option default } {
-    tailcall pathToAbsolute [getOption $option -default $default]
+    _traceCall
+
+    tailcall pathToAbsolute [getOption $option -default $default -replace variables]
+}
+
+proc ::rm::getPathResources { } {
+    _traceCall
+
+    return [getVariable "@"]
+}
+
+proc ::rm::writeKeyValue { {args {
+    {-section string -allowempty false -default Variables}
+    {-key     string -allowempty false -required}
+    {-value   string -allowempty false -required}
+    {-file    string -allowempty false}
+}} } {;##nagelfar variable opts array
+    _traceCall
+
+    set cmd [list WriteKeyValue $opts(-section) $opts(-key) $opts(-value)]
+
+    if { [info exists opts(-file)] } {
+        lappend cmd [file nativename $opts(-file)]
+    }
+
+    tailcall execBang {*}$cmd
 }
 
 proc ::rm::log { args } {
 
-   set usage "usage: ?-error|-warning|-notice|-debug? message"
+   set usage "usage: ?-error|-warning|-notice|-debug|-trace? message"
 
    if { [llength $args] < 1 || [llength $args] > 2 } {
        return -code error "[info level 0]: wrong # args, $usage"
@@ -71,17 +142,28 @@ proc ::rm::log { args } {
    if { [llength $args] == 1 } {
        set level 3
        set msg [lindex $args 0]
-   } {
+   } else {
        switch -glob -- [lindex $args 0] {
            -e* { set level 1 }
            -w* { set level 2 }
            -n* { set level 3 }
            -d* { set level 4 }
+           -t* {
+               if { ![info exists ::debug] || $::debug ne "trace" } {
+                   return
+               }
+               set level 4
+               set prefix "\[TRACE\] "
+           }
            default {
                return -code error "[info level 0]: wrong log level '[lindex $args 1]', $usage"
            }
        }
        set msg [lindex $args 1]
+
+       if { [info exists prefix] } {
+           set msg "$prefix$msg"
+       }
    }
 
    ::rm::raw::log $level $msg
@@ -91,10 +173,13 @@ proc ::rm::log { args } {
 # ======== events
 
 proc ::rm::setUpdateString { string } {
+    _traceCall
+
     set ::rm::raw::UpdateString $string
 }
 
 proc ::rm::setReloadMaxValue { value } {
+    _traceCall
 
     if { ![string is double -strict $value] } {
         log -warning "[info level 0]: value is not double: $value"
@@ -107,43 +192,100 @@ proc ::rm::setReloadMaxValue { value } {
 # ======== me
 
 proc ::rm::getSettingsFile {} {
-    return [file normalize [::rm::raw::get 2]]
+    _traceCall
+
+    return [::rm::raw::get 2]
 }
 
 proc ::rm::getSkinName {} {
+    _traceCall
+
     tailcall ::rm::raw::get 3
 }
 
 proc ::rm::getMeasureName {} {
+    _traceCall
+
     tailcall ::rm::raw::get 0
 }
 
 proc ::rm::getOption { option {args {
-    {0                string -allowempty false}
-    {-default         string -default {}}
-    {-replaceMeasures boolean -default true}
-    {-type            string -restrict {string integer double} -default string}
-}} } {
+    {0                string  -allowempty false}
+    {-default         string  -default {}}
+    {-replace         string  -restrict {measures variables}}
+    {-format          string  -default string -restrict {string integer double}}
+}} } {;##nagelfar variable opts array
+    _traceCall
 
-    if { $opts(-type) eq "string" } {
-        tailcall ::rm::raw::readString $option $opts(-default) $opts(-replaceMeasures)
+    if { $opts(-format) eq "string" } {
+
+        if { ![info exists opts(-replace)] || $opts(-replace) eq "" } {
+            tailcall ::rm::raw::readString $option $opts(-default) 0
+        } elseif { $opts(-replace) eq "measures" } {
+            tailcall ::rm::raw::readString $option $opts(-default) 1
+        } else {
+            tailcall replaceVariables [::rm::raw::readString $option $opts(-default) 0]
+        }
+
     }
 
     if { $opts(-default) eq "" } {
         set opts(-default) 0
-    } elseif { ![string is $opts(-type) -strict $opts(-default)] } {
-        rm log -warning "[info level 0]: the default value for the option '$option' has not allowed type \($opts(-type)\): $opts(-default)"
+    ##nagelfar ignore Non static subcommand to {"string is"}
+    } elseif { ![string is $opts(-format) -strict $opts(-default)] } {
+        log -warning "[info level 0]: the default value for the option '$option' has not allowed type \($opts(-format)\): $opts(-default)"
         set opts(-default) 0
     }
 
-    set val [::rm::raw::readFormula $option $opts(-default)]
+    if { ![info exists opts(-replace)] } {
+        set val [::rm::raw::readFormula $option $opts(-default)]
+    } else {
 
-    if { $opts(-type) eq "integer" } {
+        # RM API doesn't allow to parse formula with variables.
+        # Also, RM API doesn't allow to parse formula for particular
+        # string. So, we retrive the value, then parse it by tcl.
+
+        if { $opts(-replace) eq "measures" } {
+            set val [::rm::raw::readString $option $opts(-default) 1]
+        } else {
+            set val [replaceVariables [::rm::raw::readString $option $opts(-default) 0]]
+        }
+
+        set val [string map [list \[ \\\[ \] \\\] \$ \\\$] $val]
+
+        log -trace "Parsing the formula: $val"
+
+        if { [catch [list expr $val] parsed] } {
+            log -error "[info level 0]: could not parse the formula '$val': $parsed"
+            set val $opts(-default)
+        } elseif { ![string is double -strict $parsed] } {
+            log -error "[info level 0]: the parse result for the formula '$val' is not double: $parsed"
+            set val $opts(-default)
+        } else {
+            set val $parsed
+        }
+
+    }
+
+    if { $opts(-format) eq "integer" } {
         return [expr { round($val) }]
     }
 
     return [expr { 1.0 * $val }]
+}
 
+proc ::rm::setOption { option value {args {
+    {0        string -allowempty false}
+    {1        string}
+    {-section string -allowempty false}
+}} } {
+    _traceCall
+
+    if { ![info exists opts(-section)] } {
+        set opts(-section) [getMeasureName]
+    }
+
+    tailcall execBang SetOption $opts(-section) $option $value
 }
 
 # ======== variables
@@ -156,33 +298,47 @@ proc ::rm::getVariable { var {args {
     {0        string -allowempty false}
     {-default string}
 }} } {
+    _traceCall
 
-    set req "#${var}#"
+    set req "\[#${var}\]"
 
     set result [replaceVariables $req]
 
     if { $var eq $result } {
         if { [info exists opts(-default)] } {
             set result $opts(-default)
-        } {
+        } else {
             log -warning "Variable not found: $var"
         }
     }
 
     return $result
-
 }
 
 # ======== foreign measures
 
-proc ::rm::updateMeasure { ms } {
-    tailcall execute [bang UpdateMeasure $ms]
+proc ::rm::commandMeasure { ms arg {args {
+    {0       string -allowempty false}
+    {1       string -allowempty false}
+    {-config string -allowempty false}
+}} } {
+    _traceCall
+
+    set cmd [list CommandMeasure $ms $arg]
+
+    if { [info exists opts(-config)] } {
+        lappend cmd $opts(-config)
+    }
+
+    tailcall execBang {*}$cmd
 }
 
 proc ::rm::getMeasureValue { ms {args {
-    {0      string -allowempty false}
-    {-type  string -restrict {number string percentage min max urlencode timestamp} -default number -allowempty false}
-}} } {
+    {0        string -allowempty false}
+    {-type    string -restrict {number string percentage min max urlencode timestamp} -default number -allowempty false}
+    {-custom  list   -restrict { 1 + }}
+}} } {;##nagelfar variable opts array
+    _traceCall
 
     switch -exact -- $opts(-type) {
         number     { set req ":" }
@@ -194,7 +350,11 @@ proc ::rm::getMeasureValue { ms {args {
         timestamp  { set req ":Timestamp" }
     }
 
-    set req "\[$ms$req\]"
+    if { [info exists opts(-custom)] } {
+        set req ":[lindex $opts(-custom) 0]\([join [lrange $opts(-custom) 1 end] ,]\)"
+    }
+
+    set req "\[&$ms$req\]"
     set result [replaceVariables $req]
 
     if { $result eq $req } {
@@ -203,26 +363,190 @@ proc ::rm::getMeasureValue { ms {args {
     }
 
     return $result
+}
+
+# ======== groups
+
+proc ::rm::setMeasureState { name state {args {
+    {0       string -allowempty false}
+    {1       string -allowempty false -restrict {enable enabled show shown disable disabled hide hidden pause unpause toggle update}}
+    {-group  switch}
+    {-config string -allowempty false}
+}} } {;##nagelfar variable opts array
+    _traceCall
+
+    if { $state in {show shown} } {
+        set state "enable"
+    } elseif { $state in {hide hidden} } {
+        set state "disable"
+    }
+
+    set cmd [list "[string totitle $state]Measure[expr { $opts(-group)?{Group}:{} }]" $name]
+
+    if { [info exists opts(-config)] } {
+        lappend cmd $opts(-config)
+    }
+
+    tailcall execBang {*}$cmd
+}
+
+proc ::rm::setMeterState { name state {args {
+    {0       string -allowempty false}
+    {1       string -allowempty false -restrict {enable enabled show shown disable disabled hide hidden toggle update}}
+    {-group  switch}
+    {-config string -allowempty false}
+}} } {;##nagelfar variable opts array
+    _traceCall
+
+    if { $state in {enable enabled} } {
+        set state "show"
+    } elseif { $state in {disable disabled} } {
+        set state "hide"
+    }
+
+    set cmd [list "[string totitle $state]Meter[expr { $opts(-group)?{Group}:{} }]" $name]
+
+    if { [info exists opts(-config)] } {
+        lappend cmd $opts(-config)
+    }
+
+    tailcall execBang {*}$cmd
+}
+
+proc ::rm::setSkinState { state {args {
+    {0       string -allowempty false -restrict {enable enabled show shown disable disabled hide hidden toggle update redraw refresh}}
+    {-group  string -allowempty false}
+    {-config string -allowempty false}
+}} } {
+    _traceCall
+
+    if { $state in {enable enabled} } {
+        set state "show"
+    } elseif { $state in {disable disabled} } {
+        set state "hide"
+    }
+
+    set cmd [list "[string totitle $state][expr { [info exists opts(-group)]?{Group}:{} }]"]
+
+    if { [info exists opts(-group)] } {
+
+        lappend cmd $opts(-group)
+
+        if { [info exists opts(-config)] } {
+            log -warning "[info level 0]: -config option is not supported for groups"
+        }
+
+    } elseif { [info exists opts(-config)] && $opts(-config) ne "" } {
+
+        lappend cmd $opts(-config)
+
+    }
+
+    tailcall execBang {*}$cmd
+}
+
+# ======== context menu
+
+proc ::rm::setContextMenu { title {args {
+    {0       string -allowempty false}
+    {-action string -default ""}
+    {-index  int    -default 0 -restrict { { 0 + } }}
+}} } {;##nagelfar variable opts array
+    _traceCall
+
+    if { $opts(-index) == 0 } {
+
+        set idx [getVariable "_lastContextItem" -default ""]
+
+        if { $idx eq "" } {
+            set idxShown "1"
+        } else {
+            set idxShown $idx
+        }
+
+        append idxShown " (auto)"
+
+    } else {
+
+        set idx $opts(-index)
+        set idxShown $idx
+
+    }
+
+    if { $idx eq "1" } {
+        set idx ""
+    }
+
+    log -debug "addContextAction N${idxShown}: \"$title\" = $opts(-action)"
+
+    setOption "ContextTitle$idx" $title -section "Rainmeter"
+    setOption "ContextAction$idx" $opts(-action) -section "Rainmeter"
+
+    if { $opts(-index) == 0 } {
+
+        if { $idx eq "" } {
+            set idx 2
+        } else {
+            incr idx
+        }
+
+        setVariable "_lastContextItem" $idx
+
+    }
 
 }
 
-# ======== foreign sections
+proc ::rm::resetContextMenu {} {
+    _traceCall
 
-proc ::rm::setSectionOption { section variable value } {
-    tailcall execute [bang SetOption $section $variable $value]
+    setVariable "_lastContextItem" ""
 }
-
-
-
 
 #-------------------------------------------------------------------------
 #----- RAW, must not be used
 #-------------------------------------------------------------------------
 
+# This procedure must not be used in procedures from the namespace ::rm::raw
+# I had an unhandled exception when I used this procedure in ::rm::raw::Update,
+# and when the real update script (::Update) finished with en error.
+proc ::rm::_traceCall {} {
+
+    if { ![info exists ::debug] || $::debug ne "trace" } {
+        return
+    }
+
+    if { [string range [set func [lindex [info level -1] 0]] 0 1] ne "::" } {
+        if { [set ns [uplevel 1 [list namespace current]]] eq "::" } {
+          set func ::$func
+        } else {
+          set func ${ns}::[namespace tail $func]
+        }
+    }
+
+    set cmd [list $func]
+
+    foreach arg [info args $func] {
+        if { [catch [list uplevel 1 [list set $arg]] val] } {
+            lappend cmd "${arg}=NONE"
+        } else {
+            lappend cmd "${arg}='$val'"
+        }
+    }
+
+    if { ![catch [list uplevel 1 [list array get opts]] opts] } {
+        lappend cmd "|" "opts='$opts'"
+    }
+
+    log -trace [join $cmd { }]
+
+}
+
 proc ::rm::raw::Update {} {
 
     variable UpdateString
     variable UpdateStringOld
+
+    ::rm::log -trace "Update the measure"
 
     if { [info exists UpdateString] } {
         set UpdateStringOld $UpdateString
@@ -230,8 +554,8 @@ proc ::rm::raw::Update {} {
     }
 
     if { [catch [list ::Update] result] } {
-        log -error "Error in the Update procedure: $::errorInfo"
-        set result 0
+        ::rm::log -error "Error in the Update procedure: $::errorInfo"
+        return 0
     }
 
     if { ![string is double -strict $result] } {
@@ -246,40 +570,66 @@ proc ::rm::raw::Reload { maxValue } {
 
     variable MaxValue
 
+    ::rm::log -trace "Reload the measure"
+
     unset -nocomplain MaxValue
 
     if { [catch [list ::Reload $maxValue] result] } {
-        log -error "Error in the Reload procedure: $::errorInfo"
+        ::rm::log -error "Error in the Reload procedure: $::errorInfo"
     }
 
     if { [info exists MaxValue] && ![string is double -strict $MaxValue] } {
-        log -error "The maxValue is not double type: $MaxValue"
+        ::rm::log -error "The maxValue is not double type: $MaxValue"
         unset MaxValue
     }
 
 }
 
-proc ::rm::raw::ExecuteBang { bang } {
+proc ::rm::raw::ExecuteBang { script } {
 
-    log -debug "exec: $bang"
+    ::rm::log -debug "Exec script: $script"
 
-    if { [catch [list uplevel #0 $bang] result] } {
-        log -error "Error in the script \[$bang\]: $::errorInfo"
+    if { [catch [list uplevel #0 $script] result] } {
+        ::rm::log -error "Error in the script \[$script\]: $::errorInfo"
     }
 
 }
 
-package provide rm 0.0.1
+proc ::rm::raw::Finalize {} {
 
-# init
-apply {{ scriptFile } {
+    ::rm::log -trace "Finalize the measure"
+
+    if { [catch [list ::Finalize] result] } {
+        ::rm::log -error "Error in the Finalize procedure: $::errorInfo"
+    }
+
+}
+
+proc ::rm::raw::Eval { args } {
+
+    ::rm::log -debug "Eval procedure: $args"
+
+    if { [catch [list uplevel #0 $args] result] } {
+        ::rm::log -error "Error during the eval \"[join $args {, }]\": $::errorInfo"
+        return ""
+    }
+
+    return $result
+
+}
+
+proc ::rm::raw::Initialize { scriptFile } {
+
+    rename ::rm::raw::Initialize ""
+
+    ::rm::log -trace "Initialize the measure"
 
     if { $scriptFile eq "" } {
         return
     }
 
     if { [catch [list uplevel #0 [list source $scriptFile]] errmsg] } {
-        rm log -error "Error while loading the script file: $scriptFile\n$::errorInfo"
+        ::rm::log -error "Error while loading the script file: $scriptFile\n$::errorInfo"
         return
     }
 
@@ -288,7 +638,14 @@ apply {{ scriptFile } {
     }
 
     if { [catch [list uplevel #0 ::Initialize] errmsg] } {
-        rm log -error "Error while initializing the script file: $scriptFile\n$::errorInfo"
+        ::rm::log -error "Error while initializing the script file: $scriptFile\n$::errorInfo"
     }
 
-}} [rm getOption "ScriptFile"]
+    rename ::Initialize ""
+
+}
+
+package provide rm 0.0.1
+
+# init
+::rm::raw::Initialize [::rm::getOption "ScriptFile" -replace variables]
