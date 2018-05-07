@@ -1,0 +1,31 @@
+version: 1.0.{build}
+clone_depth: 1
+environment:
+  matrix:
+  - AMD64: 1
+    DEBUG: 0
+    OUTDIR: out.final.x86_64
+  - AMD64: 0
+    DEBUG: 0
+    OUTDIR: out.final.i686
+  - AMD64: 1
+    DEBUG: 1
+    OUTDIR: out.debug.x86_64
+  - AMD64: 0
+    DEBUG: 1
+    OUTDIR: out.debug.i686
+install:
+- cmd: git submodule update --init --recursive
+build_script:
+- cmd: >-
+    echo "Setting up Cygwin dependencies"
+
+    C:\cygwin64\setup-x86_64.exe -qnNdO -R "C:/cygwin64" -s "http://cygwin.mirror.constant.com" -l "C:/cygwin64/var/cache/setup" -P autoconf -P automake -P make -P mingw64-i686-gcc-g++ -P mingw64-x86_64-gcc-g++ > NUL
+
+    echo "Check Cygwin setup"
+
+    C:\cygwin64\bin\bash -lc "cygcheck -dc cygwin"'
+
+    C:\cygwin64\bin\bash -lc "cd $(cygpath ${APPVEYOR_BUILD_FOLDER}) && make"
+
+    appveyor PushArtifact %APPVEYOR_BUILD_FOLDER%\%OUTDIR%\RainmeterTcl.dll -DeploymentName "%OUTDIR%"
