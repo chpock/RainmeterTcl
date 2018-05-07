@@ -309,7 +309,7 @@ proc ::rm::getVariable { var {args {
 
     set result [replaceVariables $req]
 
-    if { $var eq $result } {
+    if { $req eq $result } {
         if { [info exists opts(-default)] } {
             set result $opts(-default)
         } else {
@@ -380,9 +380,9 @@ proc ::rm::setMeasureState { name state {args {
 }} } {;##nagelfar variable opts array
     _traceCall
 
-    if { $state in {show shown} } {
+    if { $state in {show shown enabled} } {
         set state "enable"
-    } elseif { $state in {hide hidden} } {
+    } elseif { $state in {hide hidden disabled} } {
         set state "disable"
     }
 
@@ -403,9 +403,9 @@ proc ::rm::setMeterState { name state {args {
 }} } {;##nagelfar variable opts array
     _traceCall
 
-    if { $state in {enable enabled} } {
+    if { $state in {enable enabled shown} } {
         set state "show"
-    } elseif { $state in {disable disabled} } {
+    } elseif { $state in {disable disabled hidden} } {
         set state "hide"
     }
 
@@ -425,9 +425,9 @@ proc ::rm::setSkinState { state {args {
 }} } {
     _traceCall
 
-    if { $state in {enable enabled} } {
+    if { $state in {enable enabled shown} } {
         set state "show"
-    } elseif { $state in {disable disabled} } {
+    } elseif { $state in {disable disabled hidden} } {
         set state "hide"
     }
 
