@@ -13,10 +13,10 @@ DLLNAME = $(NAME).dll
 DEBUG ?= 0
 AMD64 ?= 1
 
-CC     ?= $(_ODB_)-w64-mingw32-gcc
-RC     ?= $(_ODB_)-w64-mingw32-windres
-AR     ?= $(_ODB_)-w64-mingw32-ar
-RUNLIB ?= $(_ODB_)-w64-mingw32-ranlib
+CC     = $(_ODB_)-w64-mingw32-gcc
+RC     = $(_ODB_)-w64-mingw32-windres
+AR     = $(_ODB_)-w64-mingw32-ar
+RUNLIB = $(_ODB_)-w64-mingw32-ranlib
 CPP    = $(CC)
 
 ifeq ($(DEBUG),1)
