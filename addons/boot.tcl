@@ -9,7 +9,7 @@
 proc tclInit {} {
     rename tclInit {}
 
-    global auto_path tcl_library tcl_libPath tcl_version tclkit_system_encoding
+    global auto_path tcl_library tcl_libPath tcl_version
 
     set dll [file normalize $::tcl::kitpath]
     set tcl_library [file join $dll lib tcl$tcl_version]
@@ -18,6 +18,8 @@ proc tclInit {} {
     unset -nocomplain ::tclDefaultLibrary
 
     if { ![file isdirectory $dll] } {
+        load {} vfs
+
         set d [mk::select exe.dirs parent 0 name lib]
         set d [mk::select exe.dirs parent $d -glob name vfs*]
 

@@ -16,6 +16,11 @@
 ##nagelfar syntax ::rm::raw::readString 3
 ##nagelfar syntax ::rm::raw::readFormula 2
 
+##nagelfar syntax ::thread::release 1
+##nagelfar syntax ::thread::names 0
+##nagelfar syntax ::thread::exists 1
+##nagelfar syntax ::thread::send o* x cn
+
 package require procarg 1.0.1
 
 namespace eval ::rm {
@@ -604,8 +609,37 @@ proc ::rm::raw::Finalize {} {
 
     ::rm::log -trace "Finalize the measure"
 
-    if { [catch [list ::Finalize] result] } {
-        ::rm::log -error "Error in the Finalize procedure: $::errorInfo"
+    if { [llength [info commands ::Finalize]] } {
+        if { [catch [list ::Finalize] result] } {
+            ::rm::log -error "Error in the Finalize procedure: $::errorInfo"
+        }
+    }
+
+    foreach tid [::thread::names] {
+
+        if { [::thread::exists $tid] } {
+            ::rm::log -debug "Finalize: Thread '$tid' doesn't exist"
+            continue
+        }
+
+        ::rm::log -debug "Finalize: Killing thread $tid"
+
+        if { [catch {
+            ::thread::send $tid {
+                if { [package present -exact Tk] } {
+                    destroy .
+                }
+            }
+        } errmsg] } {
+            ::rm::log -debug "Finalize: error while destroying the thread: $::errorInfo"
+        }
+
+        if { [catch {
+            ::thread::release $tid
+        } errmsg] } {
+            ::rm::log -debug "Finalize: error while releasing the thread: $::errorInfo"
+        }
+
     }
 
 }

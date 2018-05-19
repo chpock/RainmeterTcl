@@ -237,6 +237,8 @@ static char preInitCmd[] =
 "proc tclKitPreInit {} {\n"
     "rename tclKitPreInit {}\n"
     "load {} tclkitpath\n"
+    "load {} zlib\n"
+    "load {} Mk4tcl\n"
     "set ::tcl::kitpath [file normalize $::tcl::kitpath]\n"
     "mk::file open exe $::tcl::kitpath -readonly\n"
     "set n [mk::select exe.dirs!0.files name boot.tcl]\n"
@@ -295,17 +297,17 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
 //    }
 //    Tcl_SetStdChannel(stderrChannel, TCL_STDERR);
 
-    if (Mk4tcl_Init(interp) != TCL_OK) {
-        RmLog(rm, LOG_ERROR, L"Could not init Mk4tcl extension");
-        Tcl_DeleteInterp(interp);
-        return;
-    }
+//    if (Mk4tcl_Init(interp) != TCL_OK) {
+//        RmLog(rm, LOG_ERROR, L"Could not init Mk4tcl extension");
+//        Tcl_DeleteInterp(interp);
+//        return;
+//    }
 
-    if (Vfs_Init(interp) != TCL_OK) {
-        RmLog(rm, LOG_ERROR, L"Could not init vfs extension");
-        Tcl_DeleteInterp(interp);
-        return;
-    }
+//    if (Vfs_Init(interp) != TCL_OK) {
+//        RmLog(rm, LOG_ERROR, L"Could not init vfs extension");
+//        Tcl_DeleteInterp(interp);
+//        return;
+//    }
 
     if (Thread_Init(interp) != TCL_OK) {
         RmLog(rm, LOG_ERROR, L"Could not thread extension");
@@ -313,11 +315,11 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
         return;
     }
 
-    if (TclZlibInit(interp) != TCL_OK) {
-        RmLog(rm, LOG_ERROR, L"Could not init zlib extension");
-        Tcl_DeleteInterp(interp);
-        return;
-    }
+//    if (TclZlibInit(interp) != TCL_OK) {
+//        RmLog(rm, LOG_ERROR, L"Could not init zlib extension");
+//        Tcl_DeleteInterp(interp);
+//        return;
+//    }
 
     TclSetPreInitScript(preInitCmd);
     if (Tcl_Init(interp) != TCL_OK) {
@@ -488,16 +490,11 @@ PLUGIN_EXPORT void Finalize(Measure *data) {
 
         Tcl_Interp *interp = data->interp;
 
-        if (Tcl_FindCommand(interp, "Finalize", NULL, TCL_GLOBAL_ONLY) != NULL) {
+        Tcl_Obj *objv[1];
+        objv[0] = Tcl_NewStringObj("::rm::raw::Finalize", -1);
 
-            Tcl_Obj *objv[1];
-
-            objv[0] = Tcl_NewStringObj("::rm::raw::Finalize", -1);
-
-            // errors are handled on the script level
-            Tcl_EvalObjv(data->interp, 1, objv, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
-
-        }
+        // errors are handled on the script level
+        Tcl_EvalObjv(data->interp, 1, objv, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
         Tcl_DeleteInterp(data->interp);
     }
