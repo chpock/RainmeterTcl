@@ -39,8 +39,8 @@ proc tclInit {} {
     namespace eval ::vfs { variable tclkit_version 1 }
     catch { uplevel #0 [list source [file join $dll config.tcl]] }
 
-    uplevel #0 [list source [file join $tcl_library init.tcl]]
-
     # reset auto_path, so that init.tcl's search outside of tclkit is cancelled
-    set auto_path $tcl_libPath
+    set auto_path [list $tcl_libPath]
+
+    uplevel #0 [list source [file join $tcl_library init.tcl]]
 }

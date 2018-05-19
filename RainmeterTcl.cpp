@@ -164,7 +164,6 @@ static int RmReadFormulaCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj
 
 }
 
-
 int RMT_TclStdOut(ClientData rm, CONST char * buf, int toWrite, int *errorCode) {
     *errorCode = 0;
     Tcl_SetErrno(0);
@@ -237,6 +236,7 @@ Tcl_ChannelType stdoutChannelType = {
 static char preInitCmd[] =
 "proc tclKitPreInit {} {\n"
     "rename tclKitPreInit {}\n"
+    "load {} tclkitpath\n"
     "set ::tcl::kitpath [file normalize $::tcl::kitpath]\n"
     "mk::file open exe $::tcl::kitpath -readonly\n"
     "set n [mk::select exe.dirs!0.files name boot.tcl]\n"
@@ -249,11 +249,33 @@ static char preInitCmd[] =
 "tclKitPreInit"
 ;
 
+static int TclKitPath_Init(Tcl_Interp *interp) {
+
+    Tcl_DString dsPath;
+    WCHAR path[MAX_PATH+1];
+
+    GetModuleFileNameW(G_hinstDLL, path, sizeof(path));
+
+    Tcl_WinTCharToUtf(path, -1, &dsPath);
+    Tcl_SetVar(interp, "::tcl::kitpath", Tcl_DStringValue(&dsPath), TCL_GLOBAL_ONLY);
+    Tcl_DStringFree(&dsPath);
+
+    return Tcl_PkgProvide(interp, "tclkitpath", "1.0");
+}
+
 PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
 
     *data = NULL;
 
     Tcl_Interp *interp = Tcl_CreateInterp();
+
+    Tcl_StaticPackage(0, "Mk4tcl", Mk4tcl_Init, NULL);
+    Tcl_StaticPackage(0, "vfs",    Vfs_Init, NULL);
+    Tcl_StaticPackage(0, "Thread", Thread_Init, NULL);
+    Tcl_StaticPackage(0, "zlib",   TclZlibInit, NULL);
+    Tcl_StaticPackage(0, "Tk",     Tk_Init, Tk_SafeInit);
+    Tcl_StaticPackage(0, "twapi",  Twapi_Init, NULL);
+    Tcl_StaticPackage(0, "tclkitpath", TclKitPath_Init, NULL);
 
 //    Tcl_Channel stdoutChannel = Tcl_CreateChannel(&stdoutChannelType, "rmtstdout", rm, TCL_WRITABLE);
 //    if (stdoutChannel) {
@@ -278,34 +300,24 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
         Tcl_DeleteInterp(interp);
         return;
     }
-    Tcl_StaticPackage(interp, "Mk4tcl", Mk4tcl_Init, NULL);
 
     if (Vfs_Init(interp) != TCL_OK) {
         RmLog(rm, LOG_ERROR, L"Could not init vfs extension");
         Tcl_DeleteInterp(interp);
         return;
     }
-    Tcl_StaticPackage(interp, "vfs", Vfs_Init, NULL);
 
     if (Thread_Init(interp) != TCL_OK) {
         RmLog(rm, LOG_ERROR, L"Could not thread extension");
         Tcl_DeleteInterp(interp);
         return;
     }
-    Tcl_StaticPackage(0, "Thread", Thread_Init, NULL);
 
     if (TclZlibInit(interp) != TCL_OK) {
         RmLog(rm, LOG_ERROR, L"Could not init zlib extension");
         Tcl_DeleteInterp(interp);
         return;
     }
-
-    Tcl_DString dsPath;
-    WCHAR path[MAX_PATH+1];
-    GetModuleFileNameW(G_hinstDLL, path, sizeof(path));
-    Tcl_WinTCharToUtf(path, -1, &dsPath);
-    Tcl_SetVar(interp, "::tcl::kitpath", Tcl_DStringValue(&dsPath), TCL_GLOBAL_ONLY);
-    Tcl_DStringFree(&dsPath);
 
     TclSetPreInitScript(preInitCmd);
     if (Tcl_Init(interp) != TCL_OK) {
@@ -331,12 +343,12 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
 //    }
 //    Tcl_Eval(interp, "wm geometry . 1x1+-10000+-10000; wm overrideredirect . 1; wm transient .");
 
-    if (Twapi_Init(interp) != TCL_OK) {
+//    if (Twapi_Init(interp) != TCL_OK) {
         // temporary ignore errors
         //RmLog(rm, LOG_ERROR, L"Could not init twapi extension");
         //Tcl_DeleteInterp(interp);
         //return;
-    }
+//    }
 
     Tcl_Eval(interp, "namespace eval ::rm::raw {}");
 
