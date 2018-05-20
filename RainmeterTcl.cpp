@@ -15,6 +15,7 @@
 #define STATIC_BUILD
 #include <tcl.h>
 #include <tk.h>
+#include <tkWinInt.h>
 #undef STATIC_BUILD
 
 HINSTANCE G_hinstDLL;
@@ -27,6 +28,9 @@ extern Tcl_AppInitProc Mk4tcl_Init;
 extern Tcl_AppInitProc Vfs_Init;
 extern Tcl_AppInitProc Thread_Init;
 extern Tcl_AppInitProc Twapi_Init;
+extern Tcl_AppInitProc Registry_Init;
+extern Tcl_AppInitProc Dde_Init;
+extern Tcl_AppInitProc Dde_SafeInit;
 
 extern Tcl_AppInitProc TclZlibInit;
 
@@ -42,7 +46,51 @@ typedef struct Measure {
     Tcl_DString evalStringResult;
 } Measure;
 
+
+enum RM_PTR_TYPE
+{
+    PTR_RM   = 1,
+    PTR_SKIN = 2
+};
+
+void RMT_SetPointer(Tcl_Interp *interp, int ptr_type, const void* ptr) {
+
+    char buf[50];
+    _snprintf_s(buf, 50, 49, "ptr%p", ptr);
+    switch (ptr_type) {
+        case PTR_RM:
+            Tcl_SetVar(interp, "::rm::raw::ptr_rm", buf, TCL_GLOBAL_ONLY);
+            break;
+        case PTR_SKIN:
+            Tcl_SetVar(interp, "::rm::raw::ptr_skin", buf, TCL_GLOBAL_ONLY);
+            break;
+    }
+
+}
+
+void *RMT_GetPointer(Tcl_Interp *interp, int ptr_type) {
+
+   const char *ptr_str = NULL;
+   void *result;
+
+   switch (ptr_type) {
+       case PTR_RM:
+           ptr_str = Tcl_GetVar2(interp, "::rm::raw::ptr_rm", NULL, 0);
+           break;
+       case PTR_SKIN:
+           ptr_str = Tcl_GetVar2(interp, "::rm::raw::ptr_skin", NULL, 0);
+           break;
+   }
+
+   sscanf_s(ptr_str, "ptr%p", &result);
+
+   return result;
+
+}
+
 static int RmGetCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    if (rm == NULL) rm = RMT_GetPointer(interp, PTR_RM);
 
     int type = 0;
 
@@ -62,6 +110,8 @@ static int RmGetCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const 
 
 static int RmExecuteCmd(ClientData skin, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
+    if (skin == NULL) skin = RMT_GetPointer(interp, PTR_SKIN);
+
     Tcl_DString dsStr;
     RmExecute(skin, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetString(objv[1]), -1, &dsStr));
     Tcl_DStringFree(&dsStr);
@@ -73,6 +123,8 @@ static int RmExecuteCmd(ClientData skin, Tcl_Interp *interp, int objc, Tcl_Obj *
 }
 
 static int RmPathToAbsoluteCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    if (rm == NULL) rm = RMT_GetPointer(interp, PTR_RM);
 
     Tcl_DString dsStr;
     LPCWSTR result = RmPathToAbsolute(rm, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetString(objv[1]), -1, &dsStr));
@@ -89,6 +141,8 @@ static int RmPathToAbsoluteCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_
 
 static int RmReplaceVariablesCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
+    if (rm == NULL) rm = RMT_GetPointer(interp, PTR_RM);
+
     Tcl_DString dsStr;
     LPCWSTR result = RmReplaceVariables(rm, (LPCWSTR)Tcl_WinUtfToTChar(Tcl_GetString(objv[1]), -1, &dsStr));
     Tcl_DStringFree(&dsStr);
@@ -103,6 +157,8 @@ static int RmReplaceVariablesCmd(ClientData rm, Tcl_Interp *interp, int objc, Tc
 }
 
 static int RmLogCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    if (rm == NULL) rm = RMT_GetPointer(interp, PTR_RM);
 
     int level;
 
@@ -119,6 +175,8 @@ static int RmLogCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const 
 }
 
 static int RmReadStringCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    if (rm == NULL) rm = RMT_GetPointer(interp, PTR_RM);
 
     Tcl_DString dsResult;
     Tcl_DString dsOption;
@@ -145,6 +203,8 @@ static int RmReadStringCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj 
 }
 
 static int RmReadFormulaCmd(ClientData rm, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    if (rm == NULL) rm = RMT_GetPointer(interp, PTR_RM);
 
     Tcl_DString dsOption;
     double defValue = 0;
@@ -239,6 +299,7 @@ static char preInitCmd[] =
     "load {} tclkitpath\n"
     "load {} zlib\n"
     "load {} Mk4tcl\n"
+    "load {} registry\n"
     "set ::tcl::kitpath [file normalize $::tcl::kitpath]\n"
     "mk::file open exe $::tcl::kitpath -readonly\n"
     "set n [mk::select exe.dirs!0.files name boot.tcl]\n"
@@ -263,6 +324,26 @@ static int TclKitPath_Init(Tcl_Interp *interp) {
     Tcl_DStringFree(&dsPath);
 
     return Tcl_PkgProvide(interp, "tclkitpath", "1.0");
+
+}
+
+static int RM_Init(Tcl_Interp *interp) {
+
+    Tcl_Eval(interp, "namespace eval ::rm::raw {}");
+
+    Tcl_CreateObjCommand(interp, "::rm::raw::log", RmLogCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, "::rm::raw::readString", RmReadStringCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, "::rm::raw::readFormula", RmReadFormulaCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, "::rm::raw::replaceVariables", RmReplaceVariablesCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, "::rm::raw::pathToAbsolute", RmPathToAbsoluteCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, "::rm::raw::get", RmGetCmd, NULL, NULL);
+
+    Tcl_CreateObjCommand(interp, "::rm::raw::execute", RmExecuteCmd, NULL, NULL);
+
+    return Tcl_Eval(interp, "package require rm");
+
+//    return Tcl_PkgProvide(interp, "rm", "1.0");
+
 }
 
 PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
@@ -271,55 +352,23 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
 
     Tcl_Interp *interp = Tcl_CreateInterp();
 
-    Tcl_StaticPackage(0, "Mk4tcl", Mk4tcl_Init, NULL);
-    Tcl_StaticPackage(0, "vfs",    Vfs_Init, NULL);
-    Tcl_StaticPackage(0, "Thread", Thread_Init, NULL);
-    Tcl_StaticPackage(0, "zlib",   TclZlibInit, NULL);
-    Tcl_StaticPackage(0, "Tk",     Tk_Init, Tk_SafeInit);
-    Tcl_StaticPackage(0, "twapi",  Twapi_Init, NULL);
+    Tcl_StaticPackage(0, "Mk4tcl",     Mk4tcl_Init, NULL);
+    Tcl_StaticPackage(0, "vfs",        Vfs_Init, NULL);
+    Tcl_StaticPackage(0, "Thread",     Thread_Init, NULL);
+    Tcl_StaticPackage(0, "zlib",       TclZlibInit, NULL);
+    Tcl_StaticPackage(0, "Tk",         Tk_Init, Tk_SafeInit);
+    Tcl_StaticPackage(0, "twapi_base", Twapi_Init, NULL);
     Tcl_StaticPackage(0, "tclkitpath", TclKitPath_Init, NULL);
+    Tcl_StaticPackage(0, "dde",        Dde_Init, Dde_SafeInit);
+    Tcl_StaticPackage(0, "registry",   Registry_Init, NULL);
 
-//    Tcl_Channel stdoutChannel = Tcl_CreateChannel(&stdoutChannelType, "rmtstdout", rm, TCL_WRITABLE);
-//    if (stdoutChannel) {
-//        Tcl_SetChannelOption(NULL, stdoutChannel,"-translation", "lf");
-//        Tcl_SetChannelOption(NULL, stdoutChannel,"-buffering", "none");
-//        Tcl_SetChannelOption(NULL, stdoutChannel,"-encoding", "unicode");
-//        Tcl_RegisterChannel(interp, stdoutChannel);
-//    }
-//    Tcl_SetStdChannel(stdoutChannel, TCL_STDOUT);
-
-//    Tcl_Channel stderrChannel = Tcl_CreateChannel(&stderrChannelType, "rmtstderr", rm, TCL_WRITABLE);
-//    if (stderrChannel) {
-//        Tcl_SetChannelOption(NULL, stderrChannel,"-translation", "lf");
-//        Tcl_SetChannelOption(NULL, stderrChannel,"-buffering", "none");
-//        Tcl_SetChannelOption(NULL, stderrChannel,"-encoding", "unicode");
-//        Tcl_RegisterChannel(interp, stderrChannel);
-//    }
-//    Tcl_SetStdChannel(stderrChannel, TCL_STDERR);
-
-//    if (Mk4tcl_Init(interp) != TCL_OK) {
-//        RmLog(rm, LOG_ERROR, L"Could not init Mk4tcl extension");
-//        Tcl_DeleteInterp(interp);
-//        return;
-//    }
-
-//    if (Vfs_Init(interp) != TCL_OK) {
-//        RmLog(rm, LOG_ERROR, L"Could not init vfs extension");
-//        Tcl_DeleteInterp(interp);
-//        return;
-//    }
+    Tcl_StaticPackage(0, "rm", RM_Init, NULL);
 
     if (Thread_Init(interp) != TCL_OK) {
         RmLog(rm, LOG_ERROR, L"Could not thread extension");
         Tcl_DeleteInterp(interp);
         return;
     }
-
-//    if (TclZlibInit(interp) != TCL_OK) {
-//        RmLog(rm, LOG_ERROR, L"Could not init zlib extension");
-//        Tcl_DeleteInterp(interp);
-//        return;
-//    }
 
     TclSetPreInitScript(preInitCmd);
     if (Tcl_Init(interp) != TCL_OK) {
@@ -333,39 +382,13 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
 //        RmLog(rm, LOG_DEBUG, L"RainmeterTcl: Tcl init - OK");
     }
 
-//    if (Tk_Init(interp) != TCL_OK) {
-//        Tcl_DString buf;
-//        Tcl_WinUtfToTChar(Tcl_GetStringResult(interp), -1, &buf);
-//        RmLog(rm, LOG_ERROR, (const wchar_t *)Tcl_DStringValue(&buf));
-//        Tcl_DStringFree(&buf);
-//        Tcl_DeleteInterp(interp);
-//        return;
-//    } else {
-//        RmLog(rm, LOG_DEBUG, L"RainmeterTcl: Tk init - OK");
-//    }
-//    Tcl_Eval(interp, "wm geometry . 1x1+-10000+-10000; wm overrideredirect . 1; wm transient .");
-
-//    if (Twapi_Init(interp) != TCL_OK) {
-        // temporary ignore errors
-        //RmLog(rm, LOG_ERROR, L"Could not init twapi extension");
-        //Tcl_DeleteInterp(interp);
-        //return;
-//    }
-
-    Tcl_Eval(interp, "namespace eval ::rm::raw {}");
-
-    Tcl_CreateObjCommand(interp, "::rm::raw::log", RmLogCmd, rm, NULL);
-    Tcl_CreateObjCommand(interp, "::rm::raw::readString", RmReadStringCmd, rm, NULL);
-    Tcl_CreateObjCommand(interp, "::rm::raw::readFormula", RmReadFormulaCmd, rm, NULL);
-    Tcl_CreateObjCommand(interp, "::rm::raw::replaceVariables", RmReplaceVariablesCmd, rm, NULL);
-    Tcl_CreateObjCommand(interp, "::rm::raw::pathToAbsolute", RmPathToAbsoluteCmd, rm, NULL);
-    Tcl_CreateObjCommand(interp, "::rm::raw::get", RmGetCmd, rm, NULL);
-
     void* skin = RmGetSkin(rm);
 
-    Tcl_CreateObjCommand(interp, "::rm::raw::execute", RmExecuteCmd, skin, NULL);
+    Tcl_Eval(interp, "namespace eval ::rm::raw {}");
+    RMT_SetPointer(interp, PTR_RM, rm);
+    RMT_SetPointer(interp, PTR_SKIN, skin);
 
-    Tcl_Eval(interp, "package require rm");
+    Tcl_Eval(interp, "load {} rm");
 
     *data = (Measure*)ckalloc(sizeof(Measure));
     (*data)->interp = interp;
@@ -528,6 +551,11 @@ PLUGIN_EXPORT void ExecuteBang(Measure* data, LPCWSTR args) {
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
-    G_hinstDLL = hinstDLL;
+    switch (fdwReason) {
+        case DLL_PROCESS_ATTACH:
+            G_hinstDLL = hinstDLL;
+            TkWinSetHINSTANCE(hinstDLL);
+            break;
+    }
     return TRUE;
 }

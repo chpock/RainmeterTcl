@@ -126,6 +126,10 @@ if { [catch {
         {twapi_entry.tcl pkgIndex.tcl} \
         [file join $dst lib twapi]
 
+    {*}$mcopy [file join $libs_path tkcon] \
+        {tkcon.tcl pkgIndex.tcl} \
+        [file join $dst lib tkcon]
+
     {*}$rcopy [file join $build_path addons boot.tcl] [file join $dst boot.tcl]
 
     {*}$rcopy [file join $build_path addons rm] [file join $dst lib rm]

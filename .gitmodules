@@ -40,3 +40,6 @@
 	path = src/thread
 	url = https://github.com/tcltk/thread
 	ignore = untracked
+[submodule "src/tkcon"]
+	path = src/tkcon
+	url = https://github.com/wjoye/tkcon

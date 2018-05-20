@@ -75,7 +75,7 @@ THREADLIBS   = $(THREADDIR)/libthread2.9a1.$(LIBEXT)
 OUTDIR = $(BLDDIR)/out.$(_ODN_).$(_ODB_)
 
 OBJDIR = $(OUTDIR)/obj
-INCLUDE = $(TCLDIR)/generic:$(TKDIR)/generic:$(TKDIR)/xlib
+INCLUDE = $(TCLDIR)/generic:$(TKDIR)/generic:$(TKDIR)/xlib:$(TKDIR)/win
 DLLFULLNAME = $(OUTDIR)/$(DLLNAME)
 MAP = $(OUTDIR)/$(NAME).map
 KIT = $(OUTDIR)/$(NAME).kit
@@ -165,7 +165,7 @@ $(OBJDIR)/$(NAME).$(OBJEXT): $(SOURCES) src/rainmeter-plugin-sdk/API/RainmeterAP
 	CPATH=$(INCLUDE) $(CPP) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/$(NAME).res.$(OBJEXT): $(NAME).rc version.hpp
-	$(RC) $(RCFLAGS) -o $@ --include "include" $<
+	$(RC) $(RCFLAGS) -o $@ --include "$(TKDIR)/win/rc" $<
 
 $(DLLFULLNAME).base: $(LINK_OBJS)
 	@#@rm -f "$@"

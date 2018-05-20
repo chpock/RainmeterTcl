@@ -18,8 +18,10 @@
 
 ##nagelfar syntax ::thread::release 1
 ##nagelfar syntax ::thread::names 0
+##nagelfar syntax ::thread::id 0
 ##nagelfar syntax ::thread::exists 1
-##nagelfar syntax ::thread::send o* x cn
+##nagelfar syntax ::thread::send o* x x
+##nagelfar syntax ::thread::create o* x
 
 package require procarg 1.0.1
 
@@ -512,6 +514,59 @@ proc ::rm::resetContextMenu {} {
     setVariable "_lastContextItem" ""
 }
 
+proc ::rm::tkcon {} {
+    _traceCall
+
+    ::thread::send [getThreadGUI] {
+        package require tkcon
+
+        tkcon show
+    }
+}
+
+proc ::rm::getThreadGUI {} {
+    _traceCall
+
+    variable __gui_thread
+
+    if { ![info exists __gui_thread] || ![::thread::exists $__gui_thread] } {
+
+        log "creating new thread..."
+        set __gui_thread [newThread]
+
+        ::thread::send $__gui_thread {
+            load {} Tk
+            wm geometry . 1x1+-10000+-10000
+            wm overrideredirect . 1
+            wm transient .
+        }
+
+    }
+
+    return $__gui_thread
+}
+
+proc ::rm::newThread {} {
+    _traceCall
+
+    log "creating new thread real..."
+    set tid [::thread::create {thread::wait}]
+    log "set pid..."
+    ::thread::send $tid [list set ::parent_tid [::thread::id]]
+    log "eval ..."
+    ::thread::send $tid {namespace eval ::rm::raw {}}
+    log "set ptr_rm ..."
+    ::thread::send $tid [list set ::rm::raw::ptr_rm   $::rm::raw::ptr_rm]
+    log "set ptr_skin ..."
+    ::thread::send $tid [list set ::rm::raw::ptr_skin $::rm::raw::ptr_skin]
+    ::thread::send $tid [list set ::rm::raw::child 1]
+    log "load rm ..."
+    ::thread::send $tid {load {} rm}
+    log "loaded ..."
+
+    return $tid
+}
+
 #-------------------------------------------------------------------------
 #----- RAW, must not be used
 #-------------------------------------------------------------------------
@@ -689,4 +744,6 @@ proc ::rm::raw::Initialize { scriptFile } {
 package provide rm 0.0.1
 
 # init
-::rm::raw::Initialize [::rm::getOption "ScriptFile" -replace variables]
+if { ![info exists ::rm::raw::child] } {
+    ::rm::raw::Initialize [::rm::getOption "ScriptFile" -replace variables]
+}
