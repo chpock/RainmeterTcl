@@ -531,7 +531,6 @@ proc ::rm::getThreadGUI {} {
 
     if { ![info exists __gui_thread] || ![::thread::exists $__gui_thread] } {
 
-        log "creating new thread..."
         set __gui_thread [newThread]
 
         ::thread::send $__gui_thread {
@@ -549,20 +548,13 @@ proc ::rm::getThreadGUI {} {
 proc ::rm::newThread {} {
     _traceCall
 
-    log "creating new thread real..."
     set tid [::thread::create {thread::wait}]
-    log "set pid..."
     ::thread::send $tid [list set ::parent_tid [::thread::id]]
-    log "eval ..."
     ::thread::send $tid {namespace eval ::rm::raw {}}
-    log "set ptr_rm ..."
     ::thread::send $tid [list set ::rm::raw::ptr_rm   $::rm::raw::ptr_rm]
-    log "set ptr_skin ..."
     ::thread::send $tid [list set ::rm::raw::ptr_skin $::rm::raw::ptr_skin]
     ::thread::send $tid [list set ::rm::raw::child 1]
-    log "load rm ..."
     ::thread::send $tid {load {} rm}
-    log "loaded ..."
 
     return $tid
 }
