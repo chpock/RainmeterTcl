@@ -30,7 +30,7 @@
 	ignore = untracked
 [submodule "src/metakit"]
 	path = src/metakit
-	url = https://github.com/jcw/metakit
+	url = https://github.com/chpock/metakit.git
 	ignore = untracked
 [submodule "src/twapi"]
 	path = src/twapi
@@ -43,3 +43,13 @@
 [submodule "src/tkcon"]
 	path = src/tkcon
 	url = https://github.com/wjoye/tkcon
+[submodule "src/gridplus"]
+	path = src/gridplus
+	url = https://github.com/chpock/gridplus.git
+[submodule "src/rl_json"]
+	path = src/rl_json
+	url = https://github.com/RubyLane/rl_json
+[submodule "src/tdom"]
+	path = src/tdom
+	url = https://github.com/chpock/tdom.git
+	ignore = untracked

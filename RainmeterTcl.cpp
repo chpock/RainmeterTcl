@@ -31,8 +31,9 @@ extern Tcl_AppInitProc Twapi_Init;
 extern Tcl_AppInitProc Registry_Init;
 extern Tcl_AppInitProc Dde_Init;
 extern Tcl_AppInitProc Dde_SafeInit;
-
-extern Tcl_AppInitProc TclZlibInit;
+extern Tcl_AppInitProc Rl_json_Init;
+extern Tcl_AppInitProc Tdom_Init;
+extern Tcl_AppInitProc Tdom_SafeInit;
 
 extern char* TclSetPreInitScript (char*);
 
@@ -297,10 +298,10 @@ static char preInitCmd[] =
 "proc tclKitPreInit {} {\n"
     "rename tclKitPreInit {}\n"
     "load {} tclkitpath\n"
-    "load {} zlib\n"
     "load {} Mk4tcl\n"
     "load {} registry\n"
     "set ::tcl::kitpath [file normalize $::tcl::kitpath]\n"
+    "namespace eval ::twapi [list set scriptdir [file join $::tcl::kitpath lib twapi]]\n"
     "mk::file open exe $::tcl::kitpath -readonly\n"
     "set n [mk::select exe.dirs!0.files name boot.tcl]\n"
     "array set a [mk::get exe.dirs!0.files!$n]\n"
@@ -350,22 +351,25 @@ PLUGIN_EXPORT void Initialize(Measure** data, void* rm) {
 
     *data = NULL;
 
+    Tcl_FindExecutable(NULL);
+
     Tcl_Interp *interp = Tcl_CreateInterp();
 
-    Tcl_StaticPackage(0, "Mk4tcl",     Mk4tcl_Init, NULL);
-    Tcl_StaticPackage(0, "vfs",        Vfs_Init, NULL);
-    Tcl_StaticPackage(0, "Thread",     Thread_Init, NULL);
-    Tcl_StaticPackage(0, "zlib",       TclZlibInit, NULL);
-    Tcl_StaticPackage(0, "Tk",         Tk_Init, Tk_SafeInit);
-    Tcl_StaticPackage(0, "twapi_base", Twapi_Init, NULL);
-    Tcl_StaticPackage(0, "tclkitpath", TclKitPath_Init, NULL);
-    Tcl_StaticPackage(0, "dde",        Dde_Init, Dde_SafeInit);
-    Tcl_StaticPackage(0, "registry",   Registry_Init, NULL);
+    Tcl_StaticPackage(NULL, "Mk4tcl",     Mk4tcl_Init, NULL);
+    Tcl_StaticPackage(NULL, "vfs",        Vfs_Init, NULL);
+    Tcl_StaticPackage(NULL, "Thread",     Thread_Init, NULL);
+    Tcl_StaticPackage(NULL, "Tk",         Tk_Init, Tk_SafeInit);
+    Tcl_StaticPackage(NULL, "twapi_base", Twapi_Init, NULL);
+    Tcl_StaticPackage(NULL, "tclkitpath", TclKitPath_Init, NULL);
+    Tcl_StaticPackage(NULL, "dde",        Dde_Init, Dde_SafeInit);
+    Tcl_StaticPackage(NULL, "registry",   Registry_Init, NULL);
+    Tcl_StaticPackage(NULL, "rl_json",    Rl_json_Init, NULL);
+    Tcl_StaticPackage(NULL, "tdom",       Tdom_Init, Tdom_SafeInit);
 
-    Tcl_StaticPackage(0, "rm", RM_Init, NULL);
+    Tcl_StaticPackage(NULL, "rm", RM_Init, NULL);
 
     if (Thread_Init(interp) != TCL_OK) {
-        RmLog(rm, LOG_ERROR, L"Could not thread extension");
+        RmLog(rm, LOG_ERROR, L"Could not initialize thread extension");
         Tcl_DeleteInterp(interp);
         return;
     }

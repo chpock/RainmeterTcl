@@ -15,7 +15,11 @@ proc tclInit {} {
     set tcl_library [file join $dll lib tcl$tcl_version]
     set tcl_libPath [list $tcl_library [file join $dll lib]]
 
+    namespace eval ::starkit {}
+    set ::starkit::topdir $dll
+
     unset -nocomplain ::tclDefaultLibrary
+    unset -nocomplain ::env(TCLLIBPATH)
 
     if { ![file isdirectory $dll] } {
         load {} vfs
@@ -41,8 +45,8 @@ proc tclInit {} {
     namespace eval ::vfs { variable tclkit_version 1 }
     catch { uplevel #0 [list source [file join $dll config.tcl]] }
 
-    # reset auto_path, so that init.tcl's search outside of tclkit is cancelled
-    set auto_path [list $tcl_libPath]
-
     uplevel #0 [list source [file join $tcl_library init.tcl]]
+
+    # reset auto_path, so that init.tcl's search outside of tclkit is cancelled
+    set auto_path $tcl_libPath
 }
