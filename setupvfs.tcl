@@ -147,6 +147,10 @@ if { [catch {
     #    {pkgIndex.tcl uevent.tcl uevent_onidle.tcl} \
     #    [file join $dst lib tcllib modules uev]
 
+    {*}$mcopy [file join $libs_path gridplus] \
+        {gridplus.tcl pkgIndex.tcl} \
+        [file join $dst lib gridplus]
+
     {*}$rcopy [file join $libs_path twapi twapi tcl] [file join $dst lib twapi]
     {*}$mcopy [file join $libs_path twapi] \
         {twapi_entry.tcl} \

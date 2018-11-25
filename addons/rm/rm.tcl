@@ -26,8 +26,12 @@
 package require procarg 1.0.1
 
 namespace eval ::rm {
+
     namespace export *
     namespace ensemble create
+
+    variable threads
+
 }
 
 namespace eval ::rm::raw {
@@ -514,16 +518,6 @@ proc ::rm::resetContextMenu {} {
     setVariable "_lastContextItem" ""
 }
 
-proc ::rm::tkcon {} {
-    _traceCall
-
-    ::thread::send [getThreadGUI] {
-        package require tkcon
-
-        tkcon show
-    }
-}
-
 proc ::rm::getThreadGUI {} {
     _traceCall
 
@@ -548,6 +542,8 @@ proc ::rm::getThreadGUI {} {
 proc ::rm::newThread {} {
     _traceCall
 
+    variable threads
+
     set tid [::thread::create {thread::wait}]
     ::thread::send $tid [list set ::parent_tid [::thread::id]]
     ::thread::send $tid {namespace eval ::rm::raw {}}
@@ -555,6 +551,8 @@ proc ::rm::newThread {} {
     ::thread::send $tid [list set ::rm::raw::ptr_skin $::rm::raw::ptr_skin]
     ::thread::send $tid [list set ::rm::raw::child 1]
     ::thread::send $tid {load {} rm}
+
+    lappend threads $tid
 
     return $tid
 }
@@ -662,9 +660,14 @@ proc ::rm::raw::Finalize {} {
         }
     }
 
-    foreach tid [::thread::names] {
+    if { ![info exists ::rm::threads] || ![llength $::rm::threads] } {
+        ::rm::log -trace "Finalize: No threads in this measure"
+        return
+    }
 
-        if { [::thread::exists $tid] } {
+    foreach tid $::rm::threads {
+
+        if { ![::thread::exists $tid] } {
             ::rm::log -debug "Finalize: Thread '$tid' doesn't exist"
             continue
         }
@@ -673,9 +676,10 @@ proc ::rm::raw::Finalize {} {
 
         if { [catch {
             ::thread::send $tid {
-                if { [package present -exact Tk] } {
+                if { ![catch {package present Tk}] } {
                     destroy .
                 }
+                ::rm::raw::Finalize
             }
         } errmsg] } {
             ::rm::log -debug "Finalize: error while destroying the thread: $::errorInfo"
@@ -738,4 +742,8 @@ package provide rm 0.0.1
 # init
 if { ![info exists ::rm::raw::child] } {
     ::rm::raw::Initialize [::rm::getOption "ScriptFile" -replace variables]
+}
+
+proc exit { {returnCode {}} } {
+    ::rm::log -error "Exit catched: $returnCode"
 }
