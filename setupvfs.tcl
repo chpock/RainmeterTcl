@@ -148,7 +148,10 @@ if { [catch {
     #    [file join $dst lib tcllib modules uev]
 
     {*}$mcopy [file join $libs_path gridplus] \
-        {gridplus.tcl pkgIndex.tcl} \
+        {gridplus.tcl} \
+        [file join $dst lib gridplus]
+    {*}$mcopy [file join $build_path addons gridplus] \
+        {pkgIndex.tcl} \
         [file join $dst lib gridplus]
 
     {*}$rcopy [file join $libs_path twapi twapi tcl] [file join $dst lib twapi]
@@ -168,6 +171,8 @@ if { [catch {
     {*}$rcopy [file join $build_path addons boot.tcl] [file join $dst boot.tcl]
 
     {*}$rcopy [file join $build_path addons rm] [file join $dst lib rm]
+
+    {*}$rcopy [file join $build_path addons icons] [file join $dst extra icons]
 
     {*}$filtercopy \
         [file join $libs_path rl_json pkgIndex.tcl] \

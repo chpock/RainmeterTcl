@@ -532,6 +532,7 @@ proc ::rm::getThreadGUI {} {
             wm geometry . 1x1+-10000+-10000
             wm overrideredirect . 1
             wm transient .
+            set ::rm::__gui_thread [::thread::id]
         }
 
     }
@@ -539,17 +540,52 @@ proc ::rm::getThreadGUI {} {
     return $__gui_thread
 }
 
+proc ::rm::getThreadMain {} {
+    _traceCall
+
+    variable __main_thread
+
+    if { [info exists __main_thread] } {
+        return $__main_thread
+    } else {
+        return [::thread::id]
+    }
+
+}
+
+proc ::rm::getThreadParent {} {
+    _traceCall
+
+    variable __parent_thread
+
+    if { [info exists __parent_thread] } {
+        return $__parent_thread
+    } else {
+        return [::thread::id]
+    }
+
+}
+
 proc ::rm::newThread {} {
     _traceCall
 
     variable threads
 
+    variable __parent_thread
+    variable __main_thread
+
     set tid [::thread::create {thread::wait}]
-    ::thread::send $tid [list set ::parent_tid [::thread::id]]
     ::thread::send $tid {namespace eval ::rm::raw {}}
     ::thread::send $tid [list set ::rm::raw::ptr_rm   $::rm::raw::ptr_rm]
     ::thread::send $tid [list set ::rm::raw::ptr_skin $::rm::raw::ptr_skin]
-    ::thread::send $tid [list set ::rm::raw::child 1]
+    ::thread::send $tid [list set ::rm::__parent_thread [::thread::id]]
+
+    if { [info exists __main_thread] } {
+        ::thread::send $tid [list set ::rm::__main_thread $__main_thread]
+    } else {
+        ::thread::send $tid [list set ::rm::__main_thread [::thread::id]]
+    }
+
     ::thread::send $tid {load {} rm}
 
     lappend threads $tid
@@ -740,7 +776,8 @@ proc ::rm::raw::Initialize { scriptFile } {
 package provide rm 0.0.1
 
 # init
-if { ![info exists ::rm::raw::child] } {
+# the main thread has no __main_thread variable
+if { ![info exists ::rm::__main_thread] } {
     ::rm::raw::Initialize [::rm::getOption "ScriptFile" -replace variables]
 }
 
