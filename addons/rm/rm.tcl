@@ -461,6 +461,84 @@ proc ::rm::setSkinState { state {args {
     tailcall execBang {*}$cmd
 }
 
+# ======== sugar
+
+proc ::rm::meter { command name args } {
+    _traceCall
+
+    if { $command in {enable enabled show shown disable disabled hide hidden toggle update} } {
+        tailcall setMeterState $name $command
+    }
+
+    if { $command eq "set" } {
+
+        if { [llength $args] != 2 } {
+            return -code error "rm::meter - wrong # args: set <name> <option> <value>"
+        }
+
+        setOption [lindex $args 0] [lindex $args 1] -section $name
+        #meter update $name
+
+        return
+
+    }
+
+    if { $command in {exists exist} } {
+
+        set testValue "\[${name}:X\]"
+
+        if { [replaceVariables $testValue] eq $testValue } {
+            return 0
+        } else {
+            return 1
+        }
+
+    }
+
+    return -code error "rm::meter - unknown command '$command'"
+}
+
+proc ::rm::measure { command name args } {
+    _traceCall
+
+    if { $command in {enable enabled show shown disable disabled hide hidden pause unpause toggle update} } {
+        tailcall setMeasureState $name $command
+    }
+
+    return -code error "rm::measure - unknown command '$command'"
+}
+
+proc ::rm::meterGroup { command name {args {
+    {0       string -allowempty false -restrict {enable enabled show shown disable disabled hide hidden toggle update}}
+    {1       list   -allowempty false}
+    {-config string -allowempty false}
+}} } {
+    _traceCall
+
+    foreach meter $name {
+        set cmd [list setMeterState $meter $command -group]
+        if { [info exists opts(-config)] } {
+            lappend cmd -config $opts(-config)
+        }
+        {*}$cmd
+    }
+}
+
+proc ::rm::skin { command {args {
+    {0 string -allowempty false -restrict {enable enabled show shown disable disabled hide hidden toggle update redraw refresh}}
+    {-config string -allowempty false}
+}} } {
+    _traceCall
+
+    set cmd [list setSkinState $command]
+
+    if { [info exists opts(-config)] } {
+        lappend cmd -config $opts(-config)
+    }
+
+    return [{*}$cmd]
+}
+
 # ======== context menu
 
 proc ::rm::setContextMenu { title {args {

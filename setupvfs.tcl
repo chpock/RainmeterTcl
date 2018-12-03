@@ -94,7 +94,7 @@ if { [catch {
         if { [file isdirectory $src] } {
             foreach fn [glob -tails -nocomplain -directory $src *] {
 
-                if { $fn eq "demos" } continue
+                if { $fn in {demos doc} } continue
 
                 {*}$rcopy $rcopy [file join $src $fn] [file join $dst $fn]
             }
@@ -147,12 +147,7 @@ if { [catch {
     #    {pkgIndex.tcl uevent.tcl uevent_onidle.tcl} \
     #    [file join $dst lib tcllib modules uev]
 
-    {*}$mcopy [file join $libs_path gridplus] \
-        {gridplus.tcl} \
-        [file join $dst lib gridplus]
-    {*}$mcopy [file join $build_path addons gridplus] \
-        {pkgIndex.tcl} \
-        [file join $dst lib gridplus]
+    {*}$rcopy [file join $libs_path tkmanager] [file join $dst lib tkmanager]
 
     {*}$rcopy [file join $libs_path twapi twapi tcl] [file join $dst lib twapi]
     {*}$mcopy [file join $libs_path twapi] \
@@ -188,6 +183,9 @@ if { [catch {
         [file join $dst lib tdom pkgIndex.tcl] \
             {\[file join \$dir libtdom[\d.]+\.a\]} \
             {{} tdom}
+
+    {*}$rcopy [file join $libs_path tklib modules tablelist] \
+        [file join $dst lib tablelist]
 
     vfs::unmount $dst
 
