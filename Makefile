@@ -8,6 +8,8 @@
 
 NAME = RainmeterTcl
 
+RAINMETER_BASE_SRC_DIRECTORY = /repositories/_Rainmeter/rainmeter
+
 DLLNAME = $(NAME).dll
 
 DEBUG ?= 0
@@ -164,7 +166,7 @@ ADDONS = src/procarg \
 	 $(TWAPIDIR)/twapi/tcl $(TWAPIDIR)/pkgIndex.tcl $(TWAPIDIR)/twapi_entry.tcl \
          addons/boot.tcl addons/rm/rm.tcl addons/rm/pkgIndex.tcl
 
-.PHONY: all build clean test
+.PHONY: all build clean test add
 
 all: build
 
@@ -326,3 +328,12 @@ clean:
 	make -C $(TWAPIDIR) clean
 	make -C $(THREADDIR) clean
 	make -C $(RL_JSONDIR) clean
+
+ifeq ($(AMD64),1)
+    RAINMETER_BASE_SRC_DIRECTORY_INSTALL=$(RAINMETER_BASE_SRC_DIRECTORY)/x64-Release/Plugins
+else
+    RAINMETER_BASE_SRC_DIRECTORY_INSTALL=$(RAINMETER_BASE_SRC_DIRECTORY)/x32-Release/Plugins
+endif
+
+add: $(DLLFULLNAME)
+	cp -fv $(DLLFULLNAME) $(RAINMETER_BASE_SRC_DIRECTORY_INSTALL)

@@ -122,13 +122,19 @@ proc ::rm::getPath { option default } {
 proc ::rm::getPathResources { } {
     _traceCall
 
-    return [getVariable "@"]
+    return [string trimright [getVariable "@"] "\\"]
+}
+
+proc ::rm::getPathSkin { } {
+    _traceCall
+
+    return [string trimright [getVariable "CURRENTPATH"] "\\"]
 }
 
 proc ::rm::writeKeyValue { {args {
     {-section string -allowempty false -default Variables}
     {-key     string -allowempty false -required}
-    {-value   string -allowempty false -required}
+    {-value   string -required}
     {-file    string -allowempty false}
 }} } {;##nagelfar variable opts array
     _traceCall
@@ -312,7 +318,8 @@ proc ::rm::setVariable { var value } {
 
 proc ::rm::getVariable { var {args {
     {0        string -allowempty false}
-    {-default string}
+    {-default string -default {}}
+    {-format  string -default string -restrict {string integer double}}
 }} } {
     _traceCall
 
@@ -326,6 +333,26 @@ proc ::rm::getVariable { var {args {
         } else {
             log -warning "Variable not found: $var"
         }
+    } else {
+
+       if { $opts(-format) ne "string" } {
+
+            set result [string map [list \[ \\\[ \] \\\] \$ \\\$] $result]
+
+            log -trace "Parsing the formula: $result"
+
+            if { [catch [list expr $result] parsed] } {
+                log -error "[info level 0]: could not parse the formula '$result': $parsed"
+                set result $opts(-default)
+            } elseif { ![string is double -strict $parsed] } {
+                log -error "[info level 0]: the parse result for the formula '$result' is not double: $parsed"
+                set result $opts(-default)
+            } else {
+                set result $parsed
+            }
+
+       }
+
     }
 
     return $result
@@ -467,20 +494,20 @@ proc ::rm::meter { command name args } {
     _traceCall
 
     if { $command in {enable enabled show shown disable disabled hide hidden toggle update} } {
-        tailcall setMeterState $name $command
+        foreach name $name {
+            if { $command in {enable enabled show shown toggle} } {
+                setMeterState $name update
+            }
+            setMeterState $name $command
+        }
+        return
     }
 
     if { $command eq "set" } {
-
         if { [llength $args] != 2 } {
             return -code error "rm::meter - wrong # args: set <name> <option> <value>"
         }
-
-        setOption [lindex $args 0] [lindex $args 1] -section $name
-        #meter update $name
-
-        return
-
+        tailcall setOption [lindex $args 0] [lindex $args 1] -section $name
     }
 
     if { $command in {exists exist} } {
@@ -498,16 +525,6 @@ proc ::rm::meter { command name args } {
     return -code error "rm::meter - unknown command '$command'"
 }
 
-proc ::rm::measure { command name args } {
-    _traceCall
-
-    if { $command in {enable enabled show shown disable disabled hide hidden pause unpause toggle update} } {
-        tailcall setMeasureState $name $command
-    }
-
-    return -code error "rm::measure - unknown command '$command'"
-}
-
 proc ::rm::meterGroup { command name {args {
     {0       string -allowempty false -restrict {enable enabled show shown disable disabled hide hidden toggle update}}
     {1       list   -allowempty false}
@@ -516,7 +533,54 @@ proc ::rm::meterGroup { command name {args {
     _traceCall
 
     foreach meter $name {
+        if { $command in {enable enabled show shown toggle} } {
+            set cmd [list setMeterState $meter update -group]
+            if { [info exists opts(-config)] } {
+                lappend cmd -config $opts(-config)
+            }
+            {*}$cmd
+        }
         set cmd [list setMeterState $meter $command -group]
+        if { [info exists opts(-config)] } {
+            lappend cmd -config $opts(-config)
+        }
+        {*}$cmd
+    }
+}
+
+proc ::rm::measure { command name args } {
+    _traceCall
+
+    if { $command in {enable enabled show shown disable disabled hide hidden pause unpause toggle update} } {
+        foreach name $name {
+            setMeasureState $name $command
+        }
+        return
+    }
+
+    if { $command eq "set" } {
+        if { [llength $args] != 2 } {
+            return -code error "rm::measure - wrong # args: set <name> <option> <value>"
+        }
+        tailcall setOption [lindex $args 0] [lindex $args 1] -section $name
+    }
+
+    if { $command eq "get" } {
+        tailcall getMeasureValue $name {*}$args
+    }
+
+    return -code error "rm::measure - unknown command '$command'"
+}
+
+proc ::rm::measureGroup { command name {args {
+    {0       string -allowempty false -restrict {enable enabled show shown disable disabled hide hidden pause unpause toggle update}}
+    {1       list   -allowempty false}
+    {-config string -allowempty false}
+}} } {
+    _traceCall
+
+    foreach measure $name {
+        set cmd [list setMeasureState $measure $command -group]
         if { [info exists opts(-config)] } {
             lappend cmd -config $opts(-config)
         }
@@ -537,6 +601,30 @@ proc ::rm::skin { command {args {
     }
 
     return [{*}$cmd]
+}
+
+proc ::rm::tkcon { } {
+
+    ::thread::send [getThreadGUI] {
+        package require tkcon
+
+        if {
+            [info exists ::tkcon::PRIV(root)] &&
+            [winfo exists $::tkcon::PRIV(root)] &&
+            [wm state $::tkcon::PRIV(root)] ne "withdrawn"
+        } {
+            tkcon hide
+        } else {
+            tkcon show
+            wm iconbitmap .tkcon [file join $::tcl::kitpath extra icons tkcon.ico]
+        }
+
+        proc exit { args } {
+            tkcon hide
+        }
+
+    }
+
 }
 
 # ======== context menu
@@ -594,6 +682,17 @@ proc ::rm::resetContextMenu {} {
     _traceCall
 
     setVariable "_lastContextItem" ""
+}
+
+proc ::rm::sendThread { thread code } {
+    _traceCall
+
+    if { $thread eq "GUI" } {
+        set thread [getThreadGUI]
+    }
+
+    ::thread::send $thread [list after idle $code]
+
 }
 
 proc ::rm::getThreadGUI {} {
@@ -658,13 +757,18 @@ proc ::rm::newThread {} {
     ::thread::send $tid [list set ::rm::raw::ptr_skin $::rm::raw::ptr_skin]
     ::thread::send $tid [list set ::rm::__parent_thread [::thread::id]]
 
+    if { [info exists ::debug] } {
+        ##nagelfar ignore Found constant {"::debug"} which is also a variable.
+        ::thread::send $tid [list set ::debug $::debug]
+    }
+
     if { [info exists __main_thread] } {
         ::thread::send $tid [list set ::rm::__main_thread $__main_thread]
     } else {
         ::thread::send $tid [list set ::rm::__main_thread [::thread::id]]
     }
 
-    ::thread::send $tid {load {} rm}
+    ::thread::send $tid [list load {} rm]
 
     lappend threads $tid
 
@@ -726,6 +830,8 @@ proc ::rm::raw::Update {} {
         ::rm::log -error "Error in the Update procedure: $::errorInfo"
         return 0
     }
+
+    set UpdateString $result
 
     if { ![string is double -strict $result] } {
         set result 0
