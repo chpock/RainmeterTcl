@@ -67,11 +67,11 @@ TCLVFSLIBS   = $(TCLVFSDIR)/vfs142.$(LIBEXT)
 METAKITDIR   = $(BLDDIR)/src/metakit
 METAKITLIBS  = $(METAKITDIR)/Mk4tcl2498.$(LIBEXT)
 
-TDOMDIR   = $(BLDDIR)/src/tdom
-TDOMLIBS  = $(TDOMDIR)/libtdom0.9.2.$(LIBEXT)
+TDOMDIR      = $(BLDDIR)/src/tdom
+TDOMLIBS     = $(TDOMDIR)/libtdom0.9.2.$(LIBEXT)
 
 TWAPIDIR     = $(BLDDIR)/src/twapi
-TWAPILIBS    = $(TWAPIDIR)/libtwapi4212.$(LIBEXT)
+TWAPILIBS    = $(TWAPIDIR)/libtwapi4.6.1.$(LIBEXT)
 ifeq ($(AMD64),1)
 TWAPILIBS2   = $(TWAPIDIR)/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib
 else
@@ -163,7 +163,7 @@ SOURCES = RainmeterTcl.cpp \
 
 # $(TCLLIBDIR)/modules/uev $(TCLLIBDIR)/modules/log
 ADDONS = src/procarg \
-	 $(TWAPIDIR)/twapi/tcl $(TWAPIDIR)/pkgIndex.tcl $(TWAPIDIR)/twapi_entry.tcl \
+         $(TWAPIDIR)/twapi/tcl $(TWAPIDIR)/pkgIndex.tcl $(TWAPIDIR)/twapi_entry.tcl \
          addons/boot.tcl addons/rm/rm.tcl addons/rm/pkgIndex.tcl
 
 .PHONY: all build clean test add
@@ -272,9 +272,16 @@ $(TCLVFSLIBS): $(TCLLIBS)
 	    ./configure --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
 	make -C $(TCLVFSDIR) all
 
+# without "-Isrc" compilation fails in my environment with:
+#
+# src\column.cpp:9:10: fatal error: header.h: No such file or directory
+#     9 | #include "header.h"
+#       |          ^~~~~~~~~~
+# compilation terminated.
+#
 $(METAKITLIBS): $(TCLLIBS)
 	cd $(METAKITDIR) && \
-	    $(TCLCONFFLAGS) \
+	    $(TCLCONFFLAGS) CFLAGS="-Isrc" \
 	    ./tcl/configure --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
 	make -C $(METAKITDIR) all
 
@@ -290,7 +297,7 @@ $(TDOMLIBS): $(TCLLIBS)
 $(TWAPILIBS): $(TCLLIBS)
 	cd $(TWAPIDIR) && \
 	    $(TCLCONFFLAGS) CC="$(CC) -DTWAPI_STATIC_BUILD=1" \
-	    ./configure --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
+	    sh ./configure --with-tcl=$(TCLDIR)/win $(TCLCONFPARAM)
 	make -C $(TWAPIDIR) all
 
 $(THREADLIBS): $(TCLLIBS)

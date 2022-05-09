@@ -190,6 +190,11 @@ run_tests "::tcl" [file join [pwd] .. src tcl tests] {
 
 run_tests "::twapi" [file join [pwd] .. src twapi twapi tests] {
 
+    # we want to use twapi version bundled in executable, but not
+    # twapi from source directory.
+
+    set ::env(TWAPI_TEST_USE_INSTALLED) 1
+
     source ./all.tcl
 
 } -file {

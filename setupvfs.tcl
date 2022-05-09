@@ -72,7 +72,9 @@ if { [catch {
         close $fds
 
         foreach { regexp replace } $args {
-            regsub -all $regexp $data $replace data
+            if { ![regsub -all $regexp $data $replace data] } {
+                error "ERROR: Nothing to replace with regexp '$regexp' to '$replace'. It must be unexpected that there is nothing to replace. It is possible that the source has been changed and has other string formats that should be replaced."
+            }
         }
 
         file mkdir [file dirname $dst]
@@ -153,10 +155,22 @@ if { [catch {
     {*}$mcopy [file join $libs_path twapi] \
         {twapi_entry.tcl} \
         [file join $dst lib twapi]
+    #
+    # pkgIndex.tcl for twapi may be not suitable for static link.
+    # It may contain such a command:
+    #
+    #     [list load [file join $dir libtwapi4.6.1.a] twapi_base]
+    #
+    # but for static link it must be as:
+    #
+    #     [list load {} twapi_base]
+    #
+    # Here we create a patched version of pkgIndex.tcl.
+    #
     {*}$filtercopy \
         [file join $libs_path twapi pkgIndex.tcl] \
         [file join $dst lib twapi pkgIndex.tcl] \
-            {\[file join \$dir libtwapi\d+\.a\]} \
+            {\[file join \$dir libtwapi[\d\.]+\.a\]} \
             {{}}
 
     {*}$mcopy [file join $libs_path tkcon] \
